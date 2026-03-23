@@ -15,43 +15,49 @@ export default function Layout() {
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Top navbar */}
-      <header className="bg-secondary h-14 flex items-center justify-between px-4 shrink-0 z-20">
-        <div className="flex items-center gap-1">
-          <span className="text-lg font-extrabold text-secondary-foreground tracking-tight">PEAK</span>
-          <span className="text-sm font-medium text-primary">Suplementos</span>
-        </div>
-        <button className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
-          <Bell size={20} className="text-secondary-foreground" />
-        </button>
-      </header>
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+      {/* Desktop: sidebar takes full height */}
+      {!isMobile && (
+        <aside className="w-56 bg-secondary flex flex-col shrink-0 min-h-screen">
+          {/* Logo in sidebar */}
+          <div className="h-14 flex items-center px-4 border-b border-sidebar-border">
+            <span className="text-lg font-extrabold text-secondary-foreground tracking-tight">PEAK</span>
+            <span className="text-sm font-medium text-primary ml-1">Suplementos</span>
+          </div>
+          <nav className="flex flex-col gap-1 px-3 pt-2">
+            {navItems.map((item) => {
+              const active = location.pathname === item.path;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-sidebar-accent text-primary"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  }`}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+      )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop sidebar */}
-        {!isMobile && (
-          <aside className="w-56 bg-secondary flex flex-col py-4 shrink-0">
-            <nav className="flex flex-col gap-1 px-3">
-              {navItems.map((item) => {
-                const active = location.pathname === item.path;
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-sidebar-accent text-primary"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                    }`}
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
-        )}
+      <div className="flex flex-col flex-1 min-h-screen">
+        {/* Top navbar - mobile only shows logo, desktop shows notification only */}
+        <header className="bg-secondary h-14 flex items-center justify-between px-4 shrink-0 z-20 md:bg-background md:border-b md:border-border">
+          <div className="flex items-center gap-1 md:hidden">
+            <span className="text-lg font-extrabold text-secondary-foreground tracking-tight">PEAK</span>
+            <span className="text-sm font-medium text-primary">Suplementos</span>
+          </div>
+          <div className="hidden md:block" />
+          <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+            <Bell size={20} className="text-secondary-foreground md:text-foreground" />
+          </button>
+        </header>
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto pb-20 md:pb-4">

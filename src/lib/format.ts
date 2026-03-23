@@ -11,6 +11,11 @@ export function formatDate(date: string | Date): string {
   return d.toLocaleDateString('pt-BR');
 }
 
+export function formatTime(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 export function diasAtras(date: string | Date): number {
   const d = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
@@ -21,13 +26,26 @@ export function diaSemanaAbrev(date: Date): string {
   return date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
 }
 
+export function getSaudacao(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+export function getDataHojeCompleta(): string {
+  const d = new Date();
+  const weekday = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+  const day = d.getDate();
+  const month = d.toLocaleDateString('pt-BR', { month: 'long' });
+  const year = d.getFullYear();
+  const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  return `${cap}, ${day} de ${month} de ${year}`;
+}
+
 export function getRecontatoDias(categoria: string): number {
   const map: Record<string, number> = {
-    'Whey': 25,
-    'Creatina': 50,
-    'Pré-treino': 30,
-    'Sobremesa': 15,
-    'Vitamina': 60,
+    'Whey': 25, 'Creatina': 50, 'Pré-treino': 30, 'Sobremesa': 15, 'Vitamina': 60,
   };
   return map[categoria] || 30;
 }
@@ -45,4 +63,16 @@ export function getWhatsAppScript(nome: string, categoria: string, diasSemCompra
     'Vitamina': `Oi ${firstName}! Nicolas da Peak. Tudo bem? Seu suplemento deve estar quase no fim por agora. Posso já deixar reservado pra você? Assim você não fica sem!`,
   };
   return scripts[categoria] || scripts['Whey'];
+}
+
+export function margemColorClass(pct: number): string {
+  if (pct >= 31) return 'text-success';
+  if (pct >= 25) return 'text-warning';
+  return 'text-destructive';
+}
+
+export function margemBgClass(pct: number): string {
+  if (pct >= 31) return 'bg-success text-success-foreground';
+  if (pct >= 25) return 'bg-warning text-warning-foreground';
+  return 'bg-destructive text-destructive-foreground';
 }

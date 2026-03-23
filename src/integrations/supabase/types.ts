@@ -14,7 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          canal_aquisicao: string | null
+          created_at: string | null
+          data_primeira_compra: string | null
+          data_proximo_recontato: string | null
+          data_ultima_compra: string | null
+          id: string
+          nome: string
+          observacao: string | null
+          status: string | null
+          total_acumulado: number | null
+          ultimo_produto_categoria: string | null
+          valor_ultima_compra: number | null
+          whatsapp: string | null
+        }
+        Insert: {
+          canal_aquisicao?: string | null
+          created_at?: string | null
+          data_primeira_compra?: string | null
+          data_proximo_recontato?: string | null
+          data_ultima_compra?: string | null
+          id?: string
+          nome: string
+          observacao?: string | null
+          status?: string | null
+          total_acumulado?: number | null
+          ultimo_produto_categoria?: string | null
+          valor_ultima_compra?: number | null
+          whatsapp?: string | null
+        }
+        Update: {
+          canal_aquisicao?: string | null
+          created_at?: string | null
+          data_primeira_compra?: string | null
+          data_proximo_recontato?: string | null
+          data_ultima_compra?: string | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          status?: string | null
+          total_acumulado?: number | null
+          ultimo_produto_categoria?: string | null
+          valor_ultima_compra?: number | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      produtos: {
+        Row: {
+          categoria: string | null
+          classe_abc: string | null
+          created_at: string | null
+          custo_unit: number | null
+          estoque_min: number | null
+          fornecedor: string | null
+          id: string
+          marca: string | null
+          nome: string
+          preco_venda: number | null
+          pto_reposicao: number | null
+          qtd_atual: number | null
+          sabor: string | null
+          sku: string | null
+          validade: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          classe_abc?: string | null
+          created_at?: string | null
+          custo_unit?: number | null
+          estoque_min?: number | null
+          fornecedor?: string | null
+          id?: string
+          marca?: string | null
+          nome: string
+          preco_venda?: number | null
+          pto_reposicao?: number | null
+          qtd_atual?: number | null
+          sabor?: string | null
+          sku?: string | null
+          validade?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          classe_abc?: string | null
+          created_at?: string | null
+          custo_unit?: number | null
+          estoque_min?: number | null
+          fornecedor?: string | null
+          id?: string
+          marca?: string | null
+          nome?: string
+          preco_venda?: number | null
+          pto_reposicao?: number | null
+          qtd_atual?: number | null
+          sabor?: string | null
+          sku?: string | null
+          validade?: string | null
+        }
+        Relationships: []
+      }
+      vendas: {
+        Row: {
+          canal: string | null
+          cliente_id: string | null
+          cliente_nome: string | null
+          created_at: string | null
+          custo_unit: number
+          forma_pgto: string | null
+          id: string
+          margem_rs: number | null
+          observacao: string | null
+          preco_venda: number
+          produto_id: string | null
+          produto_nome: string | null
+          quantidade: number
+          vendedor: string | null
+        }
+        Insert: {
+          canal?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          created_at?: string | null
+          custo_unit: number
+          forma_pgto?: string | null
+          id?: string
+          margem_rs?: number | null
+          observacao?: string | null
+          preco_venda: number
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+          vendedor?: string | null
+        }
+        Update: {
+          canal?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          created_at?: string | null
+          custo_unit?: number
+          forma_pgto?: string | null
+          id?: string
+          margem_rs?: number | null
+          observacao?: string | null
+          preco_venda?: number
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+          vendedor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

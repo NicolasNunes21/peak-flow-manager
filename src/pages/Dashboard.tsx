@@ -156,12 +156,12 @@ export default function Dashboard() {
 
   // Resumo do mês
   const custosMes = allMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
-  const custosFixos = 2000;
+  const custosFixos = (custosFixosData || []).reduce((s, c) => s + Number(c.valor), 0) || 2000;
   const ebitda = fatMes - custosMes - custosFixos;
-  const breakEven = 6450;
+  const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
+  const breakEven = margemMediaMes > 0 ? (custosFixos / (margemMediaMes / 100)) : 6450;
   const diasPassados = today.getDate();
   const projecao = diasPassados > 0 ? (fatMes / diasPassados) * 30 : 0;
-  const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
 
   // Empty state
   const hasData = (vendas || []).length > 0 || allMes.length > 0;

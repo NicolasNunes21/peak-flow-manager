@@ -134,11 +134,14 @@ export default function Venda() {
       }
 
       const totalPreco = precoVenda * quantidade;
+      // Use selected date for created_at
+      const vendaDate = new Date(dataVenda + 'T12:00:00');
       await supabase.from("vendas").insert({
         produto_id: selectedProduto.id, produto_nome: selectedProduto.nome,
         cliente_id: clienteId, cliente_nome: clienteNome, quantidade,
         preco_venda: precoVenda, custo_unit: custoUnit, forma_pgto: formaPgto,
         canal, observacao: observacao || null,
+        created_at: vendaDate.toISOString(),
       });
 
       await supabase.from("produtos").update({

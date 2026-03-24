@@ -158,7 +158,7 @@ export default function Venda() {
         proximoRecontato.setDate(proximoRecontato.getDate() + recontatoDias);
         const currentTotal = selectedCliente?.total_acumulado || 0;
         await supabase.from("clientes").update({
-          data_ultima_compra: new Date().toISOString().split('T')[0],
+          data_ultima_compra: dataVenda,
           total_acumulado: currentTotal + totalPreco,
           ultimo_produto_categoria: categoria,
           valor_ultima_compra: totalPreco,

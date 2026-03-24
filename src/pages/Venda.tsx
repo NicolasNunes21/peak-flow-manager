@@ -31,6 +31,10 @@ export default function Venda() {
   const [observacao, setObservacao] = useState("");
   const [showProdutoList, setShowProdutoList] = useState(false);
   const [showClienteList, setShowClienteList] = useState(false);
+  const [dataVenda, setDataVenda] = useState(() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  });
 
   const { data: produtos } = useQuery({
     queryKey: ["produtos"],

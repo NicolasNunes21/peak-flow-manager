@@ -336,7 +336,20 @@ export default function Venda() {
             </div>
           </div>
 
-          {/* Cliente */}
+          {/* Data da venda */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Data da venda</label>
+            <input
+              type="date"
+              max={todayStr}
+              className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={dataVenda}
+              onChange={e => setDataVenda(e.target.value)}
+            />
+            {dataVenda !== todayStr && (
+              <p className="text-xs text-warning font-medium">⚠ Registrando venda retroativa ({dataVenda})</p>
+            )}
+          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Cliente (opcional)</label>
             {!semCadastro && !showNovoCliente && !selectedCliente && (

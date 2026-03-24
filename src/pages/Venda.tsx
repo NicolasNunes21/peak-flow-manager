@@ -113,10 +113,13 @@ export default function Venda() {
   const margemTotal = margemRs * quantidade;
   const canSubmit = selectedProduto && formaPgto;
 
+  const todayStr = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; })();
+
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setQuantidade(1); setPrecoVenda(0);
     setFormaPgto(""); setCanal("Loja física"); setClienteSearch(""); setSelectedCliente(null);
     setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao("");
+    setDataVenda(todayStr);
   };
 
   const mutation = useMutation({

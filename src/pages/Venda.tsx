@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, formatTime, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
 import { Search, Minus, Plus, Loader2, Trash2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const FORMAS_PGTO = ["PIX", "Dinheiro", "Crédito", "Débito"];
@@ -12,7 +12,6 @@ const CANAIS = ["Loja física", "Delivery", "Academia parceira"];
 
 export default function Venda() {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const preSelectedClienteId = searchParams.get('cliente');
@@ -45,7 +44,6 @@ export default function Venda() {
     queryKey: ["clientes"],
     queryFn: async () => {
       const { data } = await supabase.from("clientes").select("*").order("nome");
-      // Pre-select client if URL param
       if (preSelectedClienteId && !selectedCliente) {
         const found = (data || []).find(c => c.id === preSelectedClienteId);
         if (found) setSelectedCliente(found);
@@ -65,7 +63,6 @@ export default function Venda() {
     },
   });
 
-  // Top 4 most sold this week
   const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: vendasSemana } = useQuery({
     queryKey: ["vendas-semana-top"],
@@ -85,7 +82,6 @@ export default function Venda() {
     return Object.values(map).sort((a, b) => b.qtd - a.qtd).slice(0, 4);
   }, [vendasSemana]);
 
-  // Last sale of selected product
   const { data: ultimaVendaProduto } = useQuery({
     queryKey: ["ultima-venda-produto", selectedProduto?.id],
     enabled: !!selectedProduto,
@@ -204,12 +200,24 @@ export default function Venda() {
   const margemPctHoje = totalHoje > 0 ? (margemHoje / totalHoje) * 100 : 0;
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-6">
+      {/* Today's summary bar */}
+      <div className="bg-card rounded-xl p-4 shadow-sm">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h1 className="text-xl font-bold text-secondary">Registrar Venda</h1>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-bold text-primary">{formatCurrency(totalHoje)}</span>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">{(vendasHoje || []).length} vendas</span>
+            <span className="text-muted-foreground">·</span>
+            <span className={`font-medium ${margemColorClass(margemPctHoje)}`}>Margem {formatPercent(margemPctHoje)}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Form */}
-        <div className="space-y-5 max-w-lg flex-1">
-          <h1 className="text-xl font-bold text-secondary">Registrar Venda</h1>
-
+        <div className="space-y-5 flex-1 max-w-lg">
           {/* Quick picks */}
           {topProdutosSemana.length > 0 && !selectedProduto && (
             <div className="space-y-1.5">
@@ -374,22 +382,24 @@ export default function Venda() {
           </button>
         </div>
 
-        {/* Today's sales sidebar */}
-        <div className="lg:w-80 space-y-3">
+        {/* Today's sales - improved layout */}
+        <div className="flex-1 lg:max-w-sm space-y-3">
           <h2 className="text-sm font-semibold text-secondary">Vendas de hoje</h2>
-          <div className="bg-card rounded-xl p-3 shadow-sm space-y-1 text-xs">
-            <span className="font-bold">{formatCurrency(totalHoje)}</span>
-            <span className="text-muted-foreground"> · {(vendasHoje || []).length} vendas · Margem {formatPercent(margemPctHoje)}</span>
-          </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+            {(vendasHoje || []).length === 0 && (
+              <div className="bg-card rounded-xl p-6 shadow-sm text-center">
+                <p className="text-sm text-muted-foreground">Nenhuma venda registrada hoje.</p>
+                <p className="text-xs text-muted-foreground mt-1">As vendas aparecerão aqui em tempo real.</p>
+              </div>
+            )}
             {(vendasHoje || []).map(v => (
-              <div key={v.id} className="bg-card rounded-xl p-3 shadow-sm space-y-1 animate-fade-in">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-medium">{v.produto_nome}</p>
+              <div key={v.id} className="bg-card rounded-xl p-3 shadow-sm animate-fade-in">
+                <div className="flex justify-between items-start mb-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{v.produto_nome}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(v.created_at!)} · {v.quantidade}× {formatCurrency(v.preco_venda)}</p>
                   </div>
-                  <p className="text-sm font-bold">{formatCurrency(v.preco_venda * v.quantidade)}</p>
+                  <p className="text-sm font-bold ml-2">{formatCurrency(v.preco_venda * v.quantidade)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {v.forma_pgto && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{v.forma_pgto}</span>}
@@ -413,7 +423,6 @@ export default function Venda() {
                 </div>
               </div>
             ))}
-            {(vendasHoje || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma venda hoje.</p>}
           </div>
         </div>
       </div>

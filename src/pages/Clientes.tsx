@@ -2,11 +2,10 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate, diasAtras, getWhatsAppScript, formatPercent } from "@/lib/format";
-import { Plus, Search, MessageCircle, ChevronRight, X, Gift, Users, Phone, Crown, DollarSign, ArrowLeft, Clock, ShoppingCart } from "lucide-react";
+import { Plus, Search, MessageCircle, ChevronRight, X, Users, Phone, Crown, DollarSign, ArrowLeft, Clock, ShoppingCart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const STATUS_COLORS: Record<string, string> = {
   Novo: "bg-primary/15 text-primary",
@@ -84,39 +83,12 @@ export default function Clientes() {
   const vipClientes = (clientes || []).filter(c => (c.total_acumulado || 0) >= 500);
   const ativosCount = (clientes || []).filter(c => c.status === 'Ativo' || c.status === 'VIP' || c.status === 'Novo').length;
 
-  // Revenue per client this month
   const receitaMediaMes = useMemo(() => {
     const vendasMes = (vendas || []).filter(v => v.created_at && v.created_at >= monthStart && v.cliente_id);
     const clientIds = new Set(vendasMes.map(v => v.cliente_id));
     const totalMes = vendasMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
     return clientIds.size > 0 ? totalMes / clientIds.size : 0;
   }, [vendas, monthStart]);
-
-  // Segments
-  const segmentos = useMemo(() => {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const fortyFiveDaysAgo = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
-
-    return {
-      prestes: (clientes || []).filter(c => { const t = c.total_acumulado || 0; return t >= 400 && t < 500; }),
-      churn: (clientes || []).filter(c => {
-        if (c.status === 'Inativo') return false;
-        const d = c.data_ultima_compra ? new Date(c.data_ultima_compra) : null;
-        return d && d < fortyFiveDaysAgo;
-      }),
-      campeoes: (clientes || []).filter(c => {
-        if ((c.total_acumulado || 0) < 500) return false;
-        const d = c.data_ultima_compra ? new Date(c.data_ultima_compra) : null;
-        return d && d >= thirtyDaysAgo;
-      }),
-      novos: (clientes || []).filter(c => {
-        const d = c.created_at ? new Date(c.created_at) : null;
-        return d && d >= weekAgo;
-      }),
-    };
-  }, [clientes]);
 
   const filtered = useMemo(() => {
     return (clientes || []).filter(c => {
@@ -125,13 +97,9 @@ export default function Clientes() {
       if (tab === "contatar") return matchSearch && c.data_proximo_recontato && c.data_proximo_recontato <= todayStr;
       if (tab === "vip") return matchSearch && (c.total_acumulado || 0) >= 500;
       if (tab === "inativos") { const dias = c.data_ultima_compra ? diasAtras(c.data_ultima_compra) : 999; return matchSearch && dias >= 60; }
-      if (tab === "prestes") return matchSearch && segmentos.prestes.includes(c);
-      if (tab === "churn") return matchSearch && segmentos.churn.includes(c);
-      if (tab === "campeoes") return matchSearch && segmentos.campeoes.includes(c);
-      if (tab === "novos") return matchSearch && segmentos.novos.includes(c);
       return matchSearch;
     });
-  }, [clientes, search, tab, todayStr, segmentos]);
+  }, [clientes, search, tab, todayStr]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -183,7 +151,7 @@ export default function Clientes() {
           <MetricCard label="Total gasto" value={formatCurrency(c.total_acumulado || 0)} icon={DollarSign} />
           <MetricCard label="Nº compras" value={String(numCompras)} icon={ShoppingCart} />
           <MetricCard label="Ticket médio" value={formatCurrency(ticketMedio)} icon={Crown} />
-          <MetricCard label="Última compra" value={`há ${dias}d`} icon={Clock} />
+          <MetricCard label="Última compra" value={dias > 0 ? `há ${dias}d` : '—'} icon={Clock} />
         </div>
 
         {/* Recontato */}
@@ -284,10 +252,6 @@ export default function Clientes() {
           { key: "contatar", label: "Contatar", count: contatarHoje.length, color: "bg-warning" },
           { key: "vip", label: "VIP" },
           { key: "inativos", label: "Inativos" },
-          { key: "prestes", label: "Prestes desconto", count: segmentos.prestes.length },
-          { key: "churn", label: "Risco churn", count: segmentos.churn.length, color: "bg-destructive" },
-          { key: "campeoes", label: "Campeões", count: segmentos.campeoes.length },
-          { key: "novos", label: "Novos", count: segmentos.novos.length },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-colors ${tab === t.key ? "bg-secondary text-secondary-foreground" : "bg-card border hover:bg-muted"}`}>
             {t.label}
@@ -311,6 +275,15 @@ export default function Clientes() {
         <input className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Buscar por nome..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
+      {/* Empty state */}
+      {filtered.length === 0 && (
+        <div className="bg-card rounded-xl p-8 shadow-sm text-center space-y-2">
+          <Users size={32} className="mx-auto text-muted-foreground" />
+          <p className="text-sm font-medium">Nenhum cliente encontrado</p>
+          <p className="text-xs text-muted-foreground">{search ? 'Tente outra busca.' : 'Cadastre seu primeiro cliente clicando no botão +'}</p>
+        </div>
+      )}
+
       {/* Client list */}
       <div className="space-y-2">
         {filtered.map(c => {
@@ -333,13 +306,12 @@ export default function Clientes() {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{formatCurrency(c.total_acumulado || 0)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{c.ultimo_produto_categoria || '—'}</p>
-                  <p className={`text-xs font-medium ${diasColor}`}>há {dias} dias</p>
+                  {c.data_ultima_compra && <p className={`text-xs font-medium ${diasColor}`}>há {dias} dias</p>}
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[120px]">
                       <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${fidelidade}%` }} />
                     </div>
                     <span className="text-[10px] text-muted-foreground">{formatCurrency(c.total_acumulado || 0)} / R$500</span>
-                    {isVip && <span className="flex items-center gap-1 text-[10px] text-warning font-medium"><Gift size={12} /> Desconto!</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

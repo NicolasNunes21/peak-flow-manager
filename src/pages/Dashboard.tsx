@@ -42,6 +42,14 @@ export default function Dashboard() {
     },
   });
 
+  const { data: custosFixosData } = useQuery({
+    queryKey: ["custos-fixos"],
+    queryFn: async () => {
+      const { data } = await supabase.from("custos_fixos").select("*");
+      return data || [];
+    },
+  });
+
   if (loadingVendas) {
     return (
       <div className="space-y-4">

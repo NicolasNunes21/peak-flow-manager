@@ -31,6 +31,10 @@ export default function Venda() {
   const [observacao, setObservacao] = useState("");
   const [showProdutoList, setShowProdutoList] = useState(false);
   const [showClienteList, setShowClienteList] = useState(false);
+  const [dataVenda, setDataVenda] = useState(() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  });
 
   const { data: produtos } = useQuery({
     queryKey: ["produtos"],
@@ -109,10 +113,13 @@ export default function Venda() {
   const margemTotal = margemRs * quantidade;
   const canSubmit = selectedProduto && formaPgto;
 
+  const todayStr = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; })();
+
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setQuantidade(1); setPrecoVenda(0);
     setFormaPgto(""); setCanal("Loja física"); setClienteSearch(""); setSelectedCliente(null);
     setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao("");
+    setDataVenda(todayStr);
   };
 
   const mutation = useMutation({
@@ -123,18 +130,21 @@ export default function Venda() {
       if (showNovoCliente && novoClienteNome) {
         const { data: newCliente } = await supabase.from("clientes").insert({
           nome: novoClienteNome, whatsapp: novoClienteWhats || null,
-          data_primeira_compra: new Date().toISOString().split('T')[0],
-          data_ultima_compra: new Date().toISOString().split('T')[0], status: 'Novo',
+          data_primeira_compra: dataVenda,
+          data_ultima_compra: dataVenda, status: 'Novo',
         }).select().single();
         if (newCliente) { clienteId = newCliente.id; clienteNome = newCliente.nome; }
       }
 
       const totalPreco = precoVenda * quantidade;
+      // Use selected date for created_at
+      const vendaDate = new Date(dataVenda + 'T12:00:00');
       await supabase.from("vendas").insert({
         produto_id: selectedProduto.id, produto_nome: selectedProduto.nome,
         cliente_id: clienteId, cliente_nome: clienteNome, quantidade,
         preco_venda: precoVenda, custo_unit: custoUnit, forma_pgto: formaPgto,
         canal, observacao: observacao || null,
+        created_at: vendaDate.toISOString(),
       });
 
       await supabase.from("produtos").update({
@@ -148,7 +158,7 @@ export default function Venda() {
         proximoRecontato.setDate(proximoRecontato.getDate() + recontatoDias);
         const currentTotal = selectedCliente?.total_acumulado || 0;
         await supabase.from("clientes").update({
-          data_ultima_compra: new Date().toISOString().split('T')[0],
+          data_ultima_compra: dataVenda,
           total_acumulado: currentTotal + totalPreco,
           ultimo_produto_categoria: categoria,
           valor_ultima_compra: totalPreco,
@@ -326,7 +336,20 @@ export default function Venda() {
             </div>
           </div>
 
-          {/* Cliente */}
+          {/* Data da venda */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Data da venda</label>
+            <input
+              type="date"
+              max={todayStr}
+              className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={dataVenda}
+              onChange={e => setDataVenda(e.target.value)}
+            />
+            {dataVenda !== todayStr && (
+              <p className="text-xs text-warning font-medium">⚠ Registrando venda retroativa ({dataVenda})</p>
+            )}
+          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Cliente (opcional)</label>
             {!semCadastro && !showNovoCliente && !selectedCliente && (

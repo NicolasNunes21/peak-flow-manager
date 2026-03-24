@@ -42,6 +42,14 @@ export default function Dashboard() {
     },
   });
 
+  const { data: custosFixosData } = useQuery({
+    queryKey: ["custos-fixos"],
+    queryFn: async () => {
+      const { data } = await supabase.from("custos_fixos").select("*");
+      return data || [];
+    },
+  });
+
   if (loadingVendas) {
     return (
       <div className="space-y-4">
@@ -148,12 +156,12 @@ export default function Dashboard() {
 
   // Resumo do mês
   const custosMes = allMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
-  const custosFixos = 2000;
+  const custosFixos = (custosFixosData || []).reduce((s, c) => s + Number(c.valor), 0) || 2000;
   const ebitda = fatMes - custosMes - custosFixos;
-  const breakEven = 6450;
+  const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
+  const breakEven = margemMediaMes > 0 ? (custosFixos / (margemMediaMes / 100)) : 6450;
   const diasPassados = today.getDate();
   const projecao = diasPassados > 0 ? (fatMes / diasPassados) * 30 : 0;
-  const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
 
   // Empty state
   const hasData = (vendas || []).length > 0 || allMes.length > 0;
@@ -300,7 +308,7 @@ export default function Dashboard() {
             <Info size={12} className="text-muted-foreground" />
           </div>
           <p className={`text-xl font-bold ${ebitda >= 0 ? 'text-success' : 'text-destructive'}`}>{hasData ? formatCurrency(ebitda) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">Custos fixos: R$2.000/mês</p>
+          <p className="text-[10px] text-muted-foreground">Custos fixos: {formatCurrency(custosFixos)}/mês</p>
         </button>
         <button onClick={() => setOpenSheet('breakeven')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
           <div className="flex items-center justify-between">
@@ -512,29 +520,36 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-secondary">Fórmula</p>
               <p className="text-sm">EBITDA = Faturamento − Custo dos Produtos − Custos Fixos</p>
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Variáveis do cálculo</p>
-              <div className="space-y-1">
-                <div className="flex justify-between p-3 border rounded-xl">
-                  <span className="text-sm">Faturamento do mês</span>
-                  <span className="text-sm font-bold">{formatCurrency(fatMes)}</span>
+            <div className="space-y-1">
+              <div className="flex justify-between p-3 border rounded-xl">
+                <span className="text-sm">Faturamento do mês</span>
+                <span className="text-sm font-bold">{formatCurrency(fatMes)}</span>
+              </div>
+              <div className="flex justify-between p-3 border rounded-xl">
+                <span className="text-sm">Custo dos produtos vendidos</span>
+                <span className="text-sm font-bold text-destructive">−{formatCurrency(custosMes)}</span>
+              </div>
+              <div className="flex justify-between p-3 border rounded-xl">
+                <span className="text-sm">Custos fixos (total)</span>
+                <span className="text-sm font-bold text-destructive">−{formatCurrency(custosFixos)}</span>
+              </div>
+              {(custosFixosData || []).length > 0 && (
+                <div className="ml-3 space-y-1">
+                  {custosFixosData!.map(c => (
+                    <div key={c.id} className="flex justify-between px-3 py-1.5 text-xs text-muted-foreground">
+                      <span>{c.nome}</span>
+                      <span>−{formatCurrency(Number(c.valor))}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex justify-between p-3 border rounded-xl">
-                  <span className="text-sm">Custo dos produtos vendidos</span>
-                  <span className="text-sm font-bold text-destructive">−{formatCurrency(custosMes)}</span>
-                </div>
-                <div className="flex justify-between p-3 border rounded-xl">
-                  <span className="text-sm">Custos fixos estimados</span>
-                  <span className="text-sm font-bold text-destructive">−{formatCurrency(custosFixos)}</span>
-                </div>
-                <div className="flex justify-between p-3 bg-muted/50 rounded-xl">
-                  <span className="text-sm font-semibold">EBITDA</span>
-                  <span className={`text-sm font-bold ${ebitda >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(ebitda)}</span>
-                </div>
+              )}
+              <div className="flex justify-between p-3 bg-muted/50 rounded-xl">
+                <span className="text-sm font-semibold">EBITDA</span>
+                <span className={`text-sm font-bold ${ebitda >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(ebitda)}</span>
               </div>
             </div>
             <div className="bg-muted/30 rounded-xl p-3">
-              <p className="text-xs text-muted-foreground"><strong>Premissas:</strong> Custos fixos de R$2.000/mês incluem aluguel, energia e despesas operacionais estimadas. Este valor pode ser ajustado conforme a realidade.</p>
+              <p className="text-xs text-muted-foreground"><strong>Premissas:</strong> Custos fixos de {formatCurrency(custosFixos)}/mês conforme cadastrado em Configurações. Edite os custos fixos para refletir a realidade.</p>
             </div>
           </div>
         </SheetContent>

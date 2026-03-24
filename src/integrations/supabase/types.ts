@@ -62,6 +62,30 @@ export type Database = {
         }
         Relationships: []
       }
+      custos_fixos: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string
+          recorrencia: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome: string
+          recorrencia?: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome?: string
+          recorrencia?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       produtos: {
         Row: {
           categoria: string | null

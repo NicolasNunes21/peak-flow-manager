@@ -130,8 +130,8 @@ export default function Venda() {
       if (showNovoCliente && novoClienteNome) {
         const { data: newCliente } = await supabase.from("clientes").insert({
           nome: novoClienteNome, whatsapp: novoClienteWhats || null,
-          data_primeira_compra: new Date().toISOString().split('T')[0],
-          data_ultima_compra: new Date().toISOString().split('T')[0], status: 'Novo',
+          data_primeira_compra: dataVenda,
+          data_ultima_compra: dataVenda, status: 'Novo',
         }).select().single();
         if (newCliente) { clienteId = newCliente.id; clienteNome = newCliente.nome; }
       }

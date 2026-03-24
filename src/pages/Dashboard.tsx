@@ -308,7 +308,7 @@ export default function Dashboard() {
             <Info size={12} className="text-muted-foreground" />
           </div>
           <p className={`text-xl font-bold ${ebitda >= 0 ? 'text-success' : 'text-destructive'}`}>{hasData ? formatCurrency(ebitda) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">Custos fixos: R$2.000/mês</p>
+          <p className="text-[10px] text-muted-foreground">Custos fixos: {formatCurrency(custosFixos)}/mês</p>
         </button>
         <button onClick={() => setOpenSheet('breakeven')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
           <div className="flex items-center justify-between">

@@ -1,11 +1,10 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, formatPercent, formatTime, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
-import { Search, Minus, Plus, Loader2, Trash2, Package } from "lucide-react";
+import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
+import { Search, Minus, Plus, Loader2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const FORMAS_PGTO = ["PIX", "Dinheiro", "Crédito", "Débito"];
 const CANAIS = ["Loja física", "Delivery", "Academia parceira"];
@@ -115,6 +114,10 @@ export default function Venda() {
 
   const todayStr = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; })();
 
+  const totalHoje = (vendasHoje || []).reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+  const margemHoje = (vendasHoje || []).reduce((s, v) => s + (v.preco_venda - v.custo_unit) * v.quantidade, 0);
+  const margemPctHoje = totalHoje > 0 ? (margemHoje / totalHoje) * 100 : 0;
+
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setQuantidade(1); setPrecoVenda(0);
     setFormaPgto(""); setCanal("Loja física"); setClienteSearch(""); setSelectedCliente(null);
@@ -137,7 +140,6 @@ export default function Venda() {
       }
 
       const totalPreco = precoVenda * quantidade;
-      // Use selected date for created_at
       const vendaDate = new Date(dataVenda + 'T12:00:00');
       await supabase.from("vendas").insert({
         produto_id: selectedProduto.id, produto_nome: selectedProduto.nome,
@@ -184,30 +186,10 @@ export default function Venda() {
     },
   });
 
-  const undoMutation = useMutation({
-    mutationFn: async (venda: any) => {
-      await supabase.from("vendas").delete().eq("id", venda.id);
-      if (venda.produto_id) {
-        const { data: prod } = await supabase.from("produtos").select("qtd_atual").eq("id", venda.produto_id).single();
-        if (prod) {
-          await supabase.from("produtos").update({ qtd_atual: (prod.qtd_atual || 0) + venda.quantidade }).eq("id", venda.produto_id);
-        }
-      }
-    },
-    onSuccess: () => {
-      toast({ title: "↩ Venda desfeita", description: "Estoque restaurado." });
-      queryClient.invalidateQueries();
-    },
-  });
-
   const selectProdutoById = (id: string) => {
     const p = (produtos || []).find(pr => pr.id === id);
     if (p) { setSelectedProduto(p); setPrecoVenda(p.preco_venda || 0); setProdutoSearch(""); setShowProdutoList(false); }
   };
-
-  const totalHoje = (vendasHoje || []).reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
-  const margemHoje = (vendasHoje || []).reduce((s, v) => s + (v.preco_venda - v.custo_unit) * v.quantidade, 0);
-  const margemPctHoje = totalHoje > 0 ? (margemHoje / totalHoje) * 100 : 0;
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -225,229 +207,185 @@ export default function Venda() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Form */}
-        <div className="space-y-5 flex-1 max-w-lg">
-          {/* Quick picks */}
-          {topProdutosSemana.length > 0 && !selectedProduto && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Mais vendidos esta semana:</p>
-              <div className="flex flex-wrap gap-2">
-                {topProdutosSemana.map(p => (
-                  <button key={p.id} onClick={() => selectProdutoById(p.id)} className="px-3 py-1.5 rounded-full text-xs font-medium bg-accent text-accent-foreground hover:bg-primary/15 transition-colors">
-                    {p.nome.length > 25 ? p.nome.slice(0, 25) + '…' : p.nome}
+      {/* Form only — no sidebar */}
+      <div className="space-y-5 max-w-lg">
+        {/* Quick picks */}
+        {topProdutosSemana.length > 0 && !selectedProduto && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Mais vendidos esta semana:</p>
+            <div className="flex flex-wrap gap-2">
+              {topProdutosSemana.map(p => (
+                <button key={p.id} onClick={() => selectProdutoById(p.id)} className="px-3 py-1.5 rounded-full text-xs font-medium bg-accent text-accent-foreground hover:bg-primary/15 transition-colors">
+                  {p.nome.length > 25 ? p.nome.slice(0, 25) + '…' : p.nome}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Produto */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Produto *</label>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
+            <input
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Buscar por nome ou SKU..."
+              value={selectedProduto ? selectedProduto.nome : produtoSearch}
+              onChange={e => { setProdutoSearch(e.target.value); setSelectedProduto(null); setShowProdutoList(true); }}
+              onFocus={() => setShowProdutoList(true)}
+            />
+            {showProdutoList && filteredProdutos.length > 0 && !selectedProduto && (
+              <div className="absolute z-10 w-full mt-1 bg-card border rounded-xl shadow-lg overflow-hidden">
+                {filteredProdutos.map(p => (
+                  <button key={p.id} className="w-full text-left px-4 py-3 hover:bg-muted text-sm border-b last:border-0 transition-colors" onClick={() => { setSelectedProduto(p); setPrecoVenda(p.preco_venda || 0); setProdutoSearch(""); setShowProdutoList(false); }}>
+                    <p className="font-medium">{p.nome}</p>
+                    <p className="text-xs text-muted-foreground">{p.sku} · {formatCurrency(p.preco_venda || 0)}</p>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Produto */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Produto *</label>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
-              <input
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Buscar por nome ou SKU..."
-                value={selectedProduto ? selectedProduto.nome : produtoSearch}
-                onChange={e => { setProdutoSearch(e.target.value); setSelectedProduto(null); setShowProdutoList(true); }}
-                onFocus={() => setShowProdutoList(true)}
-              />
-              {showProdutoList && filteredProdutos.length > 0 && !selectedProduto && (
-                <div className="absolute z-10 w-full mt-1 bg-card border rounded-xl shadow-lg overflow-hidden">
-                  {filteredProdutos.map(p => (
-                    <button key={p.id} className="w-full text-left px-4 py-3 hover:bg-muted text-sm border-b last:border-0 transition-colors" onClick={() => { setSelectedProduto(p); setPrecoVenda(p.preco_venda || 0); setProdutoSearch(""); setShowProdutoList(false); }}>
-                      <p className="font-medium">{p.nome}</p>
-                      <p className="text-xs text-muted-foreground">{p.sku} · {formatCurrency(p.preco_venda || 0)}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Product detail card */}
-            {selectedProduto && (
-              <div className="bg-muted/50 rounded-xl p-3 space-y-1.5">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-semibold">{selectedProduto.nome}</p>
-                    <p className="text-xs text-muted-foreground">{selectedProduto.marca} · {selectedProduto.categoria}</p>
-                  </div>
-                  <button className="text-xs text-destructive underline" onClick={() => { setSelectedProduto(null); setProdutoSearch(""); }}>Trocar</button>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className={`text-xs ${(selectedProduto.qtd_atual || 0) < (selectedProduto.estoque_min || 0) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                    <Package size={12} className="inline mr-1" />{selectedProduto.qtd_atual} un. restantes
-                  </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${margemBgClass(margemPct)}`}>Margem {formatPercent(margemPct)}</span>
-                  {ultimaVendaProduto && (
-                    <span className="text-xs text-muted-foreground">Última venda: há {diasAtras(ultimaVendaProduto.created_at!)} dias</span>
-                  )}
-                </div>
-              </div>
             )}
           </div>
 
-          {/* Quantidade */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Quantidade</label>
-            <div className="flex items-center gap-3">
-              <button className="w-10 h-10 rounded-xl border bg-card flex items-center justify-center hover:bg-muted active:scale-95" onClick={() => setQuantidade(Math.max(1, quantidade - 1))}><Minus size={16} /></button>
-              <span className="text-lg font-bold w-10 text-center">{quantidade}</span>
-              <button className="w-10 h-10 rounded-xl border bg-card flex items-center justify-center hover:bg-muted active:scale-95" onClick={() => setQuantidade(quantidade + 1)}><Plus size={16} /></button>
-            </div>
-          </div>
-
-          {/* Margem prominent */}
+          {/* Product detail card */}
           {selectedProduto && (
-            <div className={`rounded-xl px-4 py-4 text-center ${margemBgClass(margemPct)}`}>
-              <p className="text-lg font-bold">Margem: {formatPercent(margemPct)}</p>
-              <p className="text-sm">{formatCurrency(margemRs)} por unidade — {formatCurrency(margemTotal)} no total</p>
+            <div className="bg-muted/50 rounded-xl p-3 space-y-1.5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-semibold">{selectedProduto.nome}</p>
+                  <p className="text-xs text-muted-foreground">{selectedProduto.marca} · {selectedProduto.categoria}</p>
+                </div>
+                <button className="text-xs text-destructive underline" onClick={() => { setSelectedProduto(null); setProdutoSearch(""); }}>Trocar</button>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className={`text-xs ${(selectedProduto.qtd_atual || 0) < (selectedProduto.estoque_min || 0) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                  <Package size={12} className="inline mr-1" />{selectedProduto.qtd_atual} un. restantes
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${margemBgClass(margemPct)}`}>Margem {formatPercent(margemPct)}</span>
+                {ultimaVendaProduto && (
+                  <span className="text-xs text-muted-foreground">Última venda: há {diasAtras(ultimaVendaProduto.created_at!)} dias</span>
+                )}
+              </div>
             </div>
           )}
-
-          {/* Preço */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Preço de venda</label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
-              <input type="number" step="0.01" className="w-full pl-10 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={precoVenda || ''} onChange={e => setPrecoVenda(parseFloat(e.target.value) || 0)} />
-            </div>
-          </div>
-
-          {/* Forma de pagamento */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Forma de pagamento *</label>
-            <div className="grid grid-cols-2 gap-2">
-              {FORMAS_PGTO.map(f => (
-                <button key={f} onClick={() => setFormaPgto(f)} className={`py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${formaPgto === f ? "bg-primary text-primary-foreground shadow-md" : "bg-card border hover:bg-muted"}`}>{f}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Canal */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Canal</label>
-            <div className="flex gap-2">
-              {CANAIS.map(c => (
-                <button key={c} onClick={() => setCanal(c)} className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-[0.97] ${canal === c ? "bg-secondary text-secondary-foreground" : "bg-card border hover:bg-muted"}`}>{c}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Data da venda */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Data da venda</label>
-            <input
-              type="date"
-              max={todayStr}
-              className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              value={dataVenda}
-              onChange={e => setDataVenda(e.target.value)}
-            />
-            {dataVenda !== todayStr && (
-              <p className="text-xs text-warning font-medium">⚠ Registrando venda retroativa ({dataVenda})</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Cliente (opcional)</label>
-            {!semCadastro && !showNovoCliente && !selectedCliente && (
-              <>
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
-                  <input className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Buscar cliente..." value={clienteSearch} onChange={e => { setClienteSearch(e.target.value); setShowClienteList(true); }} onFocus={() => setShowClienteList(true)} />
-                  {showClienteList && filteredClientes.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-card border rounded-xl shadow-lg overflow-hidden">
-                      {filteredClientes.map(c => (
-                        <button key={c.id} className="w-full text-left px-4 py-3 hover:bg-muted text-sm border-b last:border-0" onClick={() => { setSelectedCliente(c); setClienteSearch(""); setShowClienteList(false); }}>{c.nome}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button className="text-xs text-primary underline" onClick={() => setShowNovoCliente(true)}>Cadastrar novo</button>
-                  <button className="text-xs text-muted-foreground underline" onClick={() => setSemCadastro(true)}>Sem cadastro</button>
-                </div>
-              </>
-            )}
-            {selectedCliente && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{selectedCliente.nome}</span>
-                <button className="text-xs text-destructive underline" onClick={() => setSelectedCliente(null)}>Remover</button>
-              </div>
-            )}
-            {semCadastro && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Sem cadastro</span>
-                <button className="text-xs text-destructive underline" onClick={() => setSemCadastro(false)}>Alterar</button>
-              </div>
-            )}
-            {showNovoCliente && (
-              <div className="space-y-2 p-3 bg-muted rounded-xl">
-                <input className="w-full px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Nome do cliente" value={novoClienteNome} onChange={e => setNovoClienteNome(e.target.value)} />
-                <input className="w-full px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="WhatsApp (opcional)" value={novoClienteWhats} onChange={e => setNovoClienteWhats(e.target.value)} />
-                <button className="text-xs text-destructive underline" onClick={() => { setShowNovoCliente(false); setNovoClienteNome(""); setNovoClienteWhats(""); }}>Cancelar</button>
-              </div>
-            )}
-          </div>
-
-          {/* Observação */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Observação</label>
-            <textarea rows={2} className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Alguma observação..." value={observacao} onChange={e => setObservacao(e.target.value)} />
-          </div>
-
-          {/* Submit */}
-          <button disabled={!canSubmit || mutation.isPending} onClick={() => mutation.mutate()} className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {mutation.isPending ? <Loader2 size={20} className="animate-spin" /> : null}
-            Confirmar Venda
-          </button>
         </div>
 
-        {/* Today's sales - improved layout */}
-        <div className="flex-1 lg:max-w-sm space-y-3">
-          <h2 className="text-sm font-semibold text-secondary">Vendas de hoje</h2>
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
-            {(vendasHoje || []).length === 0 && (
-              <div className="bg-card rounded-xl p-6 shadow-sm text-center">
-                <p className="text-sm text-muted-foreground">Nenhuma venda registrada hoje.</p>
-                <p className="text-xs text-muted-foreground mt-1">As vendas aparecerão aqui em tempo real.</p>
-              </div>
-            )}
-            {(vendasHoje || []).map(v => (
-              <div key={v.id} className="bg-card rounded-xl p-3 shadow-sm animate-fade-in">
-                <div className="flex justify-between items-start mb-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{v.produto_nome}</p>
-                    <p className="text-xs text-muted-foreground">{formatTime(v.created_at!)} · {v.quantidade}× {formatCurrency(v.preco_venda)}</p>
-                  </div>
-                  <p className="text-sm font-bold ml-2">{formatCurrency(v.preco_venda * v.quantidade)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {v.forma_pgto && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{v.forma_pgto}</span>}
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success font-medium">+{formatCurrency((v.preco_venda - v.custo_unit) * v.quantidade)}</span>
-                  <div className="flex-1" />
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button className="p-1 rounded hover:bg-destructive/10 transition-colors"><Trash2 size={14} className="text-destructive" /></button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Desfazer venda?</AlertDialogTitle>
-                        <AlertDialogDescription>O estoque será restaurado.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => undoMutation.mutate(v)}>Desfazer</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
+        {/* Quantidade */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Quantidade</label>
+          <div className="flex items-center gap-3">
+            <button className="w-10 h-10 rounded-xl border bg-card flex items-center justify-center hover:bg-muted active:scale-95" onClick={() => setQuantidade(Math.max(1, quantidade - 1))}><Minus size={16} /></button>
+            <span className="text-lg font-bold w-10 text-center">{quantidade}</span>
+            <button className="w-10 h-10 rounded-xl border bg-card flex items-center justify-center hover:bg-muted active:scale-95" onClick={() => setQuantidade(quantidade + 1)}><Plus size={16} /></button>
+          </div>
+        </div>
+
+        {/* Margem prominent */}
+        {selectedProduto && (
+          <div className={`rounded-xl px-4 py-4 text-center ${margemBgClass(margemPct)}`}>
+            <p className="text-lg font-bold">Margem: {formatPercent(margemPct)}</p>
+            <p className="text-sm">{formatCurrency(margemRs)} por unidade — {formatCurrency(margemTotal)} no total</p>
+          </div>
+        )}
+
+        {/* Preço */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Preço de venda</label>
+          <div className="relative">
+            <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
+            <input type="number" step="0.01" className="w-full pl-10 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={precoVenda || ''} onChange={e => setPrecoVenda(parseFloat(e.target.value) || 0)} />
+          </div>
+        </div>
+
+        {/* Forma de pagamento */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Forma de pagamento *</label>
+          <div className="grid grid-cols-2 gap-2">
+            {FORMAS_PGTO.map(f => (
+              <button key={f} onClick={() => setFormaPgto(f)} className={`py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${formaPgto === f ? "bg-primary text-primary-foreground shadow-md" : "bg-card border hover:bg-muted"}`}>{f}</button>
             ))}
           </div>
         </div>
+
+        {/* Canal */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Canal</label>
+          <div className="flex gap-2">
+            {CANAIS.map(c => (
+              <button key={c} onClick={() => setCanal(c)} className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-[0.97] ${canal === c ? "bg-secondary text-secondary-foreground" : "bg-card border hover:bg-muted"}`}>{c}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Data da venda */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Data da venda</label>
+          <input
+            type="date"
+            max={todayStr}
+            className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            value={dataVenda}
+            onChange={e => setDataVenda(e.target.value)}
+          />
+          {dataVenda !== todayStr && (
+            <p className="text-xs text-warning font-medium">⚠ Registrando venda retroativa ({dataVenda})</p>
+          )}
+        </div>
+
+        {/* Cliente */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Cliente (opcional)</label>
+          {!semCadastro && !showNovoCliente && !selectedCliente && (
+            <>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
+                <input className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Buscar cliente..." value={clienteSearch} onChange={e => { setClienteSearch(e.target.value); setShowClienteList(true); }} onFocus={() => setShowClienteList(true)} />
+                {showClienteList && filteredClientes.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-card border rounded-xl shadow-lg overflow-hidden">
+                    {filteredClientes.map(c => (
+                      <button key={c.id} className="w-full text-left px-4 py-3 hover:bg-muted text-sm border-b last:border-0" onClick={() => { setSelectedCliente(c); setClienteSearch(""); setShowClienteList(false); }}>{c.nome}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button className="text-xs text-primary underline" onClick={() => setShowNovoCliente(true)}>Cadastrar novo</button>
+                <button className="text-xs text-muted-foreground underline" onClick={() => setSemCadastro(true)}>Sem cadastro</button>
+              </div>
+            </>
+          )}
+          {selectedCliente && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{selectedCliente.nome}</span>
+              <button className="text-xs text-destructive underline" onClick={() => setSelectedCliente(null)}>Remover</button>
+            </div>
+          )}
+          {semCadastro && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Sem cadastro</span>
+              <button className="text-xs text-destructive underline" onClick={() => setSemCadastro(false)}>Alterar</button>
+            </div>
+          )}
+          {showNovoCliente && (
+            <div className="space-y-2 p-3 bg-muted rounded-xl">
+              <input className="w-full px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Nome do cliente" value={novoClienteNome} onChange={e => setNovoClienteNome(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="WhatsApp (opcional)" value={novoClienteWhats} onChange={e => setNovoClienteWhats(e.target.value)} />
+              <button className="text-xs text-destructive underline" onClick={() => { setShowNovoCliente(false); setNovoClienteNome(""); setNovoClienteWhats(""); }}>Cancelar</button>
+            </div>
+          )}
+        </div>
+
+        {/* Observação */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Observação</label>
+          <textarea rows={2} className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Alguma observação..." value={observacao} onChange={e => setObservacao(e.target.value)} />
+        </div>
+
+        {/* Submit */}
+        <button disabled={!canSubmit || mutation.isPending} onClick={() => mutation.mutate()} className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          {mutation.isPending ? <Loader2 size={20} className="animate-spin" /> : null}
+          Confirmar Venda
+        </button>
       </div>
     </div>
   );

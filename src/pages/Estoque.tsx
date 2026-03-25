@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, margemColorClass } from "@/lib/format";
@@ -21,8 +21,6 @@ function getStatus(p: Produto) {
   return "ok";
 }
 
-const CATEGORIAS = ['Whey', 'Creatina', 'Pré-treino', 'Sobremesa', 'Vitamina', 'Outro'];
-const MARCAS_FILTER = ['DUX', 'Max Titanium', 'Dr. Peanut', 'Gummy', 'Lauton'];
 const CLASSES = ['A', 'B', 'C'];
 
 export default function Estoque() {
@@ -51,10 +49,29 @@ export default function Estoque() {
   const [editCusto, setEditCusto] = useState(0);
 
   const [novoForm, setNovoForm] = useState({
-    nome: '', marca: 'DUX', categoria: 'Whey', sabor: '', qtd_atual: 0,
+    nome: '', marca: '', categoria: '', sabor: '', qtd_atual: 0,
     custo_unit: 0, preco_venda: 0, estoque_min: 5, pto_reposicao: 8,
     validade: '', classe_abc: 'B', fornecedor: '',
   });
+
+  // Dynamic marcas and categorias
+  const { data: marcasDb } = useQuery({
+    queryKey: ["marcas"],
+    queryFn: async () => {
+      const { data } = await supabase.from("marcas").select("*").order("nome");
+      return (data || []) as { id: string; nome: string }[];
+    },
+  });
+  const { data: categoriasDb } = useQuery({
+    queryKey: ["categorias"],
+    queryFn: async () => {
+      const { data } = await supabase.from("categorias").select("*").order("nome");
+      return (data || []) as { id: string; nome: string }[];
+    },
+  });
+
+  const marcasList = useMemo(() => (marcasDb || []).map(m => m.nome), [marcasDb]);
+  const categoriasList = useMemo(() => (categoriasDb || []).map(c => c.nome), [categoriasDb]);
 
   const { data: produtos, isLoading } = useQuery({
     queryKey: ["produtos"],
@@ -79,7 +96,7 @@ export default function Estoque() {
   const createMutation = useMutation({
     mutationFn: async () => {
       await supabase.from("produtos").insert({
-        nome: novoForm.nome, marca: novoForm.marca, categoria: novoForm.categoria,
+        nome: novoForm.nome, marca: novoForm.marca || null, categoria: novoForm.categoria || null,
         sabor: novoForm.sabor || null, qtd_atual: novoForm.qtd_atual,
         custo_unit: novoForm.custo_unit, preco_venda: novoForm.preco_venda,
         estoque_min: novoForm.estoque_min, pto_reposicao: novoForm.pto_reposicao,
@@ -91,7 +108,7 @@ export default function Estoque() {
       toast({ title: "✅ Produto adicionado!" });
       queryClient.invalidateQueries({ queryKey: ["produtos"] });
       setShowNovo(false);
-      setNovoForm({ nome: '', marca: 'DUX', categoria: 'Whey', sabor: '', qtd_atual: 0, custo_unit: 0, preco_venda: 0, estoque_min: 5, pto_reposicao: 8, validade: '', classe_abc: 'B', fornecedor: '' });
+      setNovoForm({ nome: '', marca: '', categoria: '', sabor: '', qtd_atual: 0, custo_unit: 0, preco_venda: 0, estoque_min: 5, pto_reposicao: 8, validade: '', classe_abc: 'B', fornecedor: '' });
     },
   });
 
@@ -251,7 +268,7 @@ export default function Estoque() {
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Marca</p>
             <div className="flex flex-wrap gap-2">
-              {MARCAS_FILTER.map(m => (
+              {marcasList.map(m => (
                 <button key={m} onClick={() => setFilterMarcas(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMarcas.includes(m) ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>{m}</button>
               ))}
             </div>
@@ -259,7 +276,7 @@ export default function Estoque() {
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Categoria</p>
             <div className="flex flex-wrap gap-2">
-              {CATEGORIAS.map(c => (
+              {categoriasList.map(c => (
                 <button key={c} onClick={() => setFilterCats(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterCats.includes(c) ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>{c}</button>
               ))}
             </div>
@@ -344,8 +361,18 @@ export default function Estoque() {
                       <td className="px-2 py-1"><span className={`inline-block w-2 h-2 rounded-full ${status === 'repor' ? 'bg-destructive' : status === 'atencao' ? 'bg-warning' : 'bg-success'}`} /></td>
                       <td className="px-2 py-1"><input className="w-16 px-1 py-0.5 border rounded text-xs" value={inlineData.sku || ''} onChange={e => setInlineData(d => ({ ...d, sku: e.target.value }))} /></td>
                       <td className="px-2 py-1"><input className="w-32 px-1 py-0.5 border rounded text-xs" value={inlineData.nome || ''} onChange={e => setInlineData(d => ({ ...d, nome: e.target.value }))} /></td>
-                      <td className="px-2 py-1"><input className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.marca || ''} onChange={e => setInlineData(d => ({ ...d, marca: e.target.value }))} /></td>
-                      <td className="px-2 py-1"><input className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.categoria || ''} onChange={e => setInlineData(d => ({ ...d, categoria: e.target.value }))} /></td>
+                      <td className="px-2 py-1">
+                        <select className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.marca || ''} onChange={e => setInlineData(d => ({ ...d, marca: e.target.value }))}>
+                          <option value="">—</option>
+                          {marcasList.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <select className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.categoria || ''} onChange={e => setInlineData(d => ({ ...d, categoria: e.target.value }))}>
+                          <option value="">—</option>
+                          {categoriasList.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </td>
                       <td className="px-2 py-1"><input type="number" className="w-12 px-1 py-0.5 border rounded text-xs" value={inlineData.qtd_atual ?? 0} onChange={e => setInlineData(d => ({ ...d, qtd_atual: parseInt(e.target.value) || 0 }))} /></td>
                       <td className="px-2 py-1"><input type="number" step="0.01" className="w-16 px-1 py-0.5 border rounded text-xs" value={inlineData.custo_unit ?? 0} onChange={e => setInlineData(d => ({ ...d, custo_unit: parseFloat(e.target.value) || 0 }))} /></td>
                       <td className="px-2 py-1"><input type="number" step="0.01" className="w-16 px-1 py-0.5 border rounded text-xs" value={inlineData.preco_venda ?? 0} onChange={e => setInlineData(d => ({ ...d, preco_venda: parseFloat(e.target.value) || 0 }))} /></td>
@@ -442,10 +469,26 @@ export default function Estoque() {
       {/* New Product Modal */}
       {showNovo && (
         <Modal onClose={() => setShowNovo(false)} title="Novo produto">
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-3">
             <Field label="Nome *" value={novoForm.nome} onChange={v => setNovoForm(f => ({ ...f, nome: v }))} />
-            <SelectField label="Marca *" value={novoForm.marca} options={['DUX', 'Max Titanium', 'Dr. Peanut', 'Gummy', 'Lauton', 'Outro']} onChange={v => setNovoForm(f => ({ ...f, marca: v }))} />
-            <SelectField label="Categoria *" value={novoForm.categoria} options={CATEGORIAS} onChange={v => setNovoForm(f => ({ ...f, categoria: v }))} />
+            <DynamicSelectField
+              label="Marca *"
+              value={novoForm.marca}
+              options={marcasList}
+              onChange={v => setNovoForm(f => ({ ...f, marca: v }))}
+              tableName="marcas"
+              queryClient={queryClient}
+              toast={toast}
+            />
+            <DynamicSelectField
+              label="Categoria *"
+              value={novoForm.categoria}
+              options={categoriasList}
+              onChange={v => setNovoForm(f => ({ ...f, categoria: v }))}
+              tableName="categorias"
+              queryClient={queryClient}
+              toast={toast}
+            />
             <Field label="Sabor" value={novoForm.sabor} onChange={v => setNovoForm(f => ({ ...f, sabor: v }))} />
             <Field label="Qtd atual *" type="number" value={novoForm.qtd_atual} onChange={v => setNovoForm(f => ({ ...f, qtd_atual: parseInt(v) || 0 }))} />
             <Field label="Custo unit. (R$)" type="number" value={novoForm.custo_unit} onChange={v => setNovoForm(f => ({ ...f, custo_unit: parseFloat(v) || 0 }))} step="0.01" />
@@ -492,16 +535,32 @@ export default function Estoque() {
 }
 
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-card w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-50 bg-black/50"
+        style={{ width: '100vw', height: '100vh', top: 0, left: 0 }}
+        onClick={onClose}
+      />
+      {/* Modal */}
+      <div
+        className="fixed z-[51] w-[calc(100%-2rem)] max-w-md bg-card rounded-2xl p-5 space-y-3 shadow-xl"
+        style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxHeight: '90vh', overflowY: 'auto' }}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-secondary">{title}</h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted"><X size={18} /></button>
         </div>
         {children}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -521,6 +580,63 @@ function SelectField({ label, value, options, onChange }: { label: string; value
       <select className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary mt-1" value={value} onChange={e => onChange(e.target.value)}>
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
+    </div>
+  );
+}
+
+function DynamicSelectField({ label, value, options, onChange, tableName, queryClient, toast }: {
+  label: string; value: string; options: string[]; onChange: (v: string) => void;
+  tableName: string; queryClient: any; toast: any;
+}) {
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      await supabase.from(tableName as any).insert({ nome: newName.trim() } as any);
+      queryClient.invalidateQueries({ queryKey: [tableName] });
+      onChange(newName.trim());
+      toast({ title: `✅ ${label.replace(' *', '')} "${newName.trim()}" criada com sucesso` });
+      setNewName("");
+      setShowNew(false);
+    } catch {
+      toast({ title: "Erro ao criar", variant: "destructive" as const });
+    }
+    setCreating(false);
+  };
+
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <select
+        className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary mt-1"
+        value={value}
+        onChange={e => {
+          if (e.target.value === '__new__') { setShowNew(true); return; }
+          onChange(e.target.value);
+        }}
+      >
+        <option value="">Selecione...</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+        <option value="__new__">+ Adicionar {label.replace(' *', '').toLowerCase()}</option>
+      </select>
+      {showNew && (
+        <div className="flex gap-2 mt-2">
+          <input
+            className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder={`Nome da nova ${label.replace(' *', '').toLowerCase()}`}
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            autoFocus
+          />
+          <button onClick={handleCreate} disabled={creating || !newName.trim()} className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">Criar</button>
+          <button onClick={() => { setShowNew(false); setNewName(""); }} className="px-2 py-2 rounded-lg border text-sm hover:bg-muted"><X size={14} /></button>
+        </div>
+      )}
     </div>
   );
 }

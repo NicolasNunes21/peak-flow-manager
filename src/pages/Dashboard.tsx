@@ -215,7 +215,9 @@ export default function Dashboard() {
             {clientesRecontato!.map(c => {
               const dias = diasAtras(c.data_ultima_compra || c.created_at || '');
               const script = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
-              const whatsUrl = `https://wa.me/55${c.whatsapp}?text=${encodeURIComponent(script)}`;
+              const whatsNum = (c.whatsapp || '').replace(/\D/g, '');
+              const whatsNumFull = whatsNum.startsWith('55') ? whatsNum : `55${whatsNum}`;
+              const whatsUrl = `https://wa.me/${whatsNumFull}?text=${encodeURIComponent(script)}`;
               return (
                 <div key={c.id} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, margemColorClass } from "@/lib/format";
@@ -540,27 +541,29 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-50 bg-black/50"
-        style={{ width: '100vw', height: '100vh', top: 0, left: 0 }}
         onClick={onClose}
       />
       {/* Modal */}
       <div
-        className="fixed z-[51] w-[calc(100%-2rem)] max-w-md bg-card rounded-2xl p-5 space-y-3 shadow-xl"
-        style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxHeight: '90vh', overflowY: 'auto' }}
+        className="fixed z-[51] w-[calc(100%-2rem)] max-w-md bg-card rounded-2xl shadow-xl"
+        style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between p-5 pb-0">
           <h2 className="text-lg font-bold text-secondary">{title}</h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted"><X size={18} /></button>
         </div>
-        {children}
+        <div className="p-5 pt-3 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 60px)' }}>
+          {children}
+        </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

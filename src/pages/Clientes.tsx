@@ -128,7 +128,6 @@ export default function Clientes() {
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
     const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
     const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${encodeURIComponent(whatsScript)}` : null;
-    const diasRecontato
 
     const diasRecontato = c.data_proximo_recontato ? Math.floor((new Date(c.data_proximo_recontato).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 

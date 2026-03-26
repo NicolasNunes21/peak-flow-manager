@@ -296,7 +296,7 @@ export default function Clientes() {
 
           const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
           const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
-          const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${encodeURIComponent(whatsScript)}` : null;
+          const whatsUrl = whatsNumero ? `https://web.whatsapp.com/send?phone=55${whatsNumero}&text=${encodeURIComponent(whatsScript)}` : null;
 
           return (
             <div key={c.id} className="bg-card rounded-xl shadow-sm overflow-hidden">

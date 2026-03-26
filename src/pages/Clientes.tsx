@@ -126,7 +126,8 @@ export default function Clientes() {
     const ticketMedio = numCompras > 0 ? clienteVendas.reduce((s: number, v: any) => s + v.preco_venda * v.quantidade, 0) / numCompras : 0;
     const dias = c.data_ultima_compra ? diasAtras(c.data_ultima_compra) : 0;
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
-    const whatsUrl = c.whatsapp ? `https://wa.me/55${c.whatsapp}?text=${encodeURIComponent(whatsScript)}` : null;
+    const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
+    const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${encodeURIComponent(whatsScript)}` : null;
     const diasRecontato = c.data_proximo_recontato ? Math.floor((new Date(c.data_proximo_recontato).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
     return (
@@ -293,7 +294,8 @@ export default function Clientes() {
           const isVip = (c.total_acumulado || 0) >= 500;
 
           const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
-          const whatsUrl = c.whatsapp ? `https://wa.me/55${c.whatsapp}?text=${encodeURIComponent(whatsScript)}` : null;
+          const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
+          const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${encodeURIComponent(whatsScript)}` : null;
 
           return (
             <div key={c.id} className="bg-card rounded-xl shadow-sm overflow-hidden">

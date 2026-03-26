@@ -164,7 +164,7 @@ export default function Clientes() {
             <p className="text-sm">{diasRecontato <= 0 ? <span className="text-warning font-medium">Contatar agora!</span> : <span>Em {diasRecontato} dias — {formatDate(c.data_proximo_recontato!)}</span>}</p>
           ) : <p className="text-xs text-muted-foreground">Sem data definida</p>}
           <div className="flex gap-2 flex-wrap">
-            {whatsUrl && <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-success text-success-foreground text-xs font-medium flex items-center gap-2"><MessageCircle size={14} /> Abrir WhatsApp</a>}
+            {whatsUrl && <button onClick={() => { const w = window.open('', '_blank'); if (w) w.location.href = whatsUrl; }} className="px-4 py-2 rounded-xl bg-success text-success-foreground text-xs font-medium flex items-center gap-2"><MessageCircle size={14} /> Abrir WhatsApp</button>}
             <button onClick={() => adiarRecontatoMutation.mutate({ id: c.id, dias: 7 })} className="px-3 py-2 rounded-xl border text-xs font-medium hover:bg-muted">+7 dias</button>
             <button onClick={() => adiarRecontatoMutation.mutate({ id: c.id, dias: 15 })} className="px-3 py-2 rounded-xl border text-xs font-medium hover:bg-muted">+15 dias</button>
           </div>
@@ -321,9 +321,9 @@ export default function Clientes() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {whatsUrl && (
-                    <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
+                    <button onClick={() => { const w = window.open('', '_blank'); if (w) w.location.href = whatsUrl; }} className="w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
                       <MessageCircle size={16} className="text-success-foreground" />
-                    </a>
+                    </button>
                   )}
                   <button onClick={() => setDetailCliente(c)} className="p-1">
                     <ChevronRight size={16} className="text-muted-foreground" />
@@ -337,7 +337,7 @@ export default function Clientes() {
 
       {/* New client modal */}
       {showNovo && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40" onClick={() => setShowNovo(false)}>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={() => setShowNovo(false)}>
           <div className="bg-card w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-secondary">Novo cliente</h2>

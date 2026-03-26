@@ -127,8 +127,7 @@ export default function Clientes() {
     const dias = c.data_ultima_compra ? diasAtras(c.data_ultima_compra) : 0;
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
     const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
-    `https://web.whatsapp.com/send?phone=55${whatsNumero}&text=${encodeURIComponent(whatsScript)}`
-
+    const whatsUrl = whatsNumero ? `https://web.whatsapp.com/send?phone=55${whatsNumero}&text=${encodeURIComponent(whatsScript)}` : null;
     const diasRecontato = c.data_proximo_recontato ? Math.floor((new Date(c.data_proximo_recontato).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
     return (
@@ -145,9 +144,8 @@ export default function Clientes() {
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[c.status || 'Novo']}`}>{c.status}</span>
             </div>
             <p className="text-xs text-muted-foreground">{c.canal_aquisicao} · Desde {c.data_primeira_compra ? formatDate(c.data_primeira_compra) : '—'}</p>
+            {c.whatsapp && <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageCircle size={11} /> {c.whatsapp}</p>}
           </div>
-          {c.whatsapp && <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageCircle size={11} /> {c.whatsapp}</p>}
-
         </div>
 
         {/* Metric cards */}
@@ -301,7 +299,6 @@ export default function Clientes() {
           const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${encodeURIComponent(whatsScript)}` : null;
 
           return (
-
             <div key={c.id} className="bg-card rounded-xl shadow-sm overflow-hidden">
               <div className="p-4 flex items-start gap-3">
                 <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="mt-1 rounded" />

@@ -127,7 +127,7 @@ export default function Clientes() {
     const dias = c.data_ultima_compra ? diasAtras(c.data_ultima_compra) : 0;
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
     const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
-    const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${encodeURIComponent(whatsScript)}` : null;
+    `https://web.whatsapp.com/send?phone=55${whatsNumero}&text=${encodeURIComponent(whatsScript)}`
 
     const diasRecontato = c.data_proximo_recontato ? Math.floor((new Date(c.data_proximo_recontato).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
@@ -146,6 +146,8 @@ export default function Clientes() {
             </div>
             <p className="text-xs text-muted-foreground">{c.canal_aquisicao} · Desde {c.data_primeira_compra ? formatDate(c.data_primeira_compra) : '—'}</p>
           </div>
+          {c.whatsapp && <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageCircle size={11} /> {c.whatsapp}</p>}
+
         </div>
 
         {/* Metric cards */}

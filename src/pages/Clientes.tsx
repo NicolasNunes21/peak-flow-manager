@@ -127,7 +127,7 @@ export default function Clientes() {
     const dias = c.data_ultima_compra ? diasAtras(c.data_ultima_compra) : 0;
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
     const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
-    const whatsUrl = whatsNumero ? `https://web.whatsapp.com/send?phone=55${whatsNumero}&text=${encodeURIComponent(whatsScript)}` : null;
+    const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${whatsNumero}` : null;
     const diasRecontato = c.data_proximo_recontato ? Math.floor((new Date(c.data_proximo_recontato).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
     return (
@@ -163,8 +163,7 @@ export default function Clientes() {
             <p className="text-sm">{diasRecontato <= 0 ? <span className="text-warning font-medium">Contatar agora!</span> : <span>Em {diasRecontato} dias — {formatDate(c.data_proximo_recontato!)}</span>}</p>
           ) : <p className="text-xs text-muted-foreground">Sem data definida</p>}
           <div className="flex gap-2 flex-wrap">
-            {whatsNumero && <button onClick={() => { navigator.clipboard.writeText(`55${whatsNumero}`); toast({ title: "📋 Número copiado!", description: `55${whatsNumero}` }); }} className="px-4 py-2 rounded-xl bg-success text-success-foreground text-xs font-medium flex items-center gap-2"><MessageCircle size={14} /> Copiar número</button>}
-            {whatsNumero && <button onClick={() => { navigator.clipboard.writeText(whatsScript); toast({ title: "📋 Mensagem copiada!" }); }} className="px-3 py-2 rounded-xl border text-xs font-medium hover:bg-muted">Copiar mensagem</button>}
+            {whatsUrl && <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-success text-success-foreground text-xs font-medium flex items-center gap-2"><MessageCircle size={14} /> Abrir WhatsApp</a>}
             <button onClick={() => adiarRecontatoMutation.mutate({ id: c.id, dias: 7 })} className="px-3 py-2 rounded-xl border text-xs font-medium hover:bg-muted">+7 dias</button>
             <button onClick={() => adiarRecontatoMutation.mutate({ id: c.id, dias: 15 })} className="px-3 py-2 rounded-xl border text-xs font-medium hover:bg-muted">+15 dias</button>
           </div>
@@ -297,7 +296,7 @@ export default function Clientes() {
 
           const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
           const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
-          const whatsUrl = whatsNumero ? `https://web.whatsapp.com/send?phone=55${whatsNumero}&text=${encodeURIComponent(whatsScript)}` : null;
+          const whatsUrl = whatsNumero ? `https://wa.me/55${whatsNumero}?text=${whatsNumero}` : null;
 
           return (
             <div key={c.id} className="bg-card rounded-xl shadow-sm overflow-hidden">
@@ -319,10 +318,10 @@ export default function Clientes() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {whatsNumero && (
-                    <button onClick={() => { navigator.clipboard.writeText(`55${whatsNumero}`); toast({ title: "📋 Número copiado!", description: `55${whatsNumero}` }); }} className="w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
+                  {whatsUrl && (
+                    <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
                       <MessageCircle size={16} className="text-success-foreground" />
-                    </button>
+                    </a>
                   )}
                   <button onClick={() => setDetailCliente(c)} className="p-1">
                     <ChevronRight size={16} className="text-muted-foreground" />

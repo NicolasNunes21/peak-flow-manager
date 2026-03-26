@@ -208,7 +208,7 @@ export default function Venda() {
       </div>
 
       {/* Form only — no sidebar */}
-      <div className="space-y-5 max-w-lg">
+      <div className="space-y-5 max-w-lg mx-auto">
         {/* Quick picks */}
         {topProdutosSemana.length > 0 && !selectedProduto && (
           <div className="space-y-1.5">

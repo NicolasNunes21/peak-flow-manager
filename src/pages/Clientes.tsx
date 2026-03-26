@@ -128,7 +128,7 @@ export default function Clientes() {
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
     const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '') : null;
     const whatsNumeroFull = whatsNumero ? (whatsNumero.startsWith('55') ? whatsNumero : `55${whatsNumero}`) : null;
-    const whatsUrl = whatsNumeroFull ? `https://wa.me/${whatsNumeroFull}?text=${encodeURIComponent(whatsScript)}` : null;
+    const whatsUrl = whatsNumeroFull ? `https://api.whatsapp.com/send/?phone=${whatsNumeroFull}&text=${encodeURIComponent(whatsScript)}&type=phone_number&app_absent=0` : null;
     const diasRecontato = c.data_proximo_recontato ? Math.floor((new Date(c.data_proximo_recontato).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
     return (
@@ -298,7 +298,7 @@ export default function Clientes() {
           const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
           const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '') : null;
           const whatsNumeroFull = whatsNumero ? (whatsNumero.startsWith('55') ? whatsNumero : `55${whatsNumero}`) : null;
-          const whatsUrl = whatsNumeroFull ? `https://wa.me/${whatsNumeroFull}?text=${encodeURIComponent(whatsScript)}` : null;
+          const whatsUrl = whatsNumeroFull ? `https://api.whatsapp.com/send/?phone=${whatsNumeroFull}&text=${encodeURIComponent(whatsScript)}&type=phone_number&app_absent=0` : null;
 
           return (
             <div key={c.id} className="bg-card rounded-xl shadow-sm overflow-hidden">

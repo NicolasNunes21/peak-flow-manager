@@ -103,8 +103,7 @@ export default function Dashboard() {
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
 
-  // weekDayGroups is declared below after chartData
-  // activeDayGroups will be set after weekDayGroups is declared
+  // activeDayGroups/custoPeriodo moved after weekDayGroups declaration
   const fatPeriodo = periodo === 'semana' ? fatSemana : fatMes;
   const metaPeriodo = periodo === 'semana' ? metaSemana : metaMes;
   const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
@@ -161,7 +160,12 @@ export default function Dashboard() {
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
 
-  // Category breakdown for margin sheet
+  const activeDayGroups = periodo === 'semana' ? weekDayGroups : monthDayGroups;
+  const fatPeriodo = periodo === 'semana' ? fatSemana : fatMes;
+  const metaPeriodo = periodo === 'semana' ? metaSemana : metaMes;
+  const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
+  const margemPctPeriodo = fatPeriodo > 0 ? ((fatPeriodo - custoPeriodo) / fatPeriodo) * 100 : 0;
+
   const catBreakdown: Record<string, { total: number; custo: number }> = {};
   (vendas || []).forEach(v => {
     const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';

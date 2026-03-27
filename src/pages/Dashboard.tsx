@@ -75,6 +75,8 @@ export default function Dashboard() {
   const ticketMedio = numVendasMes > 0 ? fatMes / numVendasMes : 0;
 
   const metaMes = 7000;
+  const diasPassados = today.getDate();
+  const custosMes = allMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
 
   // Monthly chart data
   const chartDataMes = Array.from({ length: diasPassados }, (_, i) => {
@@ -101,11 +103,6 @@ export default function Dashboard() {
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
 
-  const activeDayGroups = periodo === 'semana' ? weekDayGroups : monthDayGroups;
-  const fatPeriodo = periodo === 'semana' ? fatSemana : fatMes;
-  const metaPeriodo = periodo === 'semana' ? metaSemana : metaMes;
-  const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
-  const margemPctPeriodo = fatPeriodo > 0 ? ((fatPeriodo - custoPeriodo) / fatPeriodo) * 100 : 0;
 
   // Chart data
   const chartData = Array.from({ length: 7 }, (_, i) => {
@@ -158,7 +155,12 @@ export default function Dashboard() {
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
 
-  // Category breakdown for margin sheet
+  const activeDayGroups = periodo === 'semana' ? weekDayGroups : monthDayGroups;
+  const fatPeriodo = periodo === 'semana' ? fatSemana : fatMes;
+  const metaPeriodo = periodo === 'semana' ? metaSemana : metaMes;
+  const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
+  const margemPctPeriodo = fatPeriodo > 0 ? ((fatPeriodo - custoPeriodo) / fatPeriodo) * 100 : 0;
+
   const catBreakdown: Record<string, { total: number; custo: number }> = {};
   (vendas || []).forEach(v => {
     const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';
@@ -199,12 +201,10 @@ export default function Dashboard() {
   const vendaMaisBaixa = allMes.length ? Math.min(...allMes.map(v => v.preco_venda * v.quantidade)) : 0;
 
   // Resumo do mês
-  const custosMes = allMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
   const custosFixos = (custosFixosData || []).reduce((s, c) => s + Number(c.valor), 0) || 2000;
   const ebitda = fatMes - custosMes - custosFixos;
   const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
   const breakEven = margemMediaMes > 0 ? (custosFixos / (margemMediaMes / 100)) : 6450;
-  const diasPassados = today.getDate();
   const projecao = diasPassados > 0 ? (fatMes / diasPassados) * 30 : 0;
 
   // Empty state

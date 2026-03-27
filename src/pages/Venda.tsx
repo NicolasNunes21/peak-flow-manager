@@ -211,7 +211,7 @@ export default function Venda() {
       <div className="space-y-5 max-w-lg mx-auto">
         {/* Quick picks */}
         {topProdutosSemana.length > 0 && !selectedProduto && (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 text-center">
             <p className="text-xs font-medium text-muted-foreground">Mais vendidos esta semana:</p>
             <div className="flex flex-wrap gap-2">
               {topProdutosSemana.map(p => (
@@ -225,7 +225,7 @@ export default function Venda() {
 
         {/* Produto */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Produto *</label>
+          <label className="text-sm font-medium text-center block">Produto *</label>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
             <input
@@ -271,9 +271,9 @@ export default function Venda() {
         </div>
 
         {/* Quantidade */}
-        <div className="space-y-2">
+        <div className="space-y-2 text-center">
           <label className="text-sm font-medium">Quantidade</label>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             <button className="w-10 h-10 rounded-xl border bg-card flex items-center justify-center hover:bg-muted active:scale-95" onClick={() => setQuantidade(Math.max(1, quantidade - 1))}><Minus size={16} /></button>
             <span className="text-lg font-bold w-10 text-center">{quantidade}</span>
             <button className="w-10 h-10 rounded-xl border bg-card flex items-center justify-center hover:bg-muted active:scale-95" onClick={() => setQuantidade(quantidade + 1)}><Plus size={16} /></button>
@@ -290,7 +290,7 @@ export default function Venda() {
 
         {/* Preço */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Preço de venda</label>
+          <label className="text-sm font-medium text-center block">Preço de venda</label>
           <div className="relative">
             <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
             <input type="number" step="0.01" className="w-full pl-10 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={precoVenda || ''} onChange={e => setPrecoVenda(parseFloat(e.target.value) || 0)} />
@@ -299,7 +299,7 @@ export default function Venda() {
 
         {/* Forma de pagamento */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Forma de pagamento *</label>
+          <label className="text-sm font-medium text-center block">Forma de pagamento *</label>
           <div className="grid grid-cols-2 gap-2">
             {FORMAS_PGTO.map(f => (
               <button key={f} onClick={() => setFormaPgto(f)} className={`py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${formaPgto === f ? "bg-primary text-primary-foreground shadow-md" : "bg-card border hover:bg-muted"}`}>{f}</button>
@@ -309,7 +309,7 @@ export default function Venda() {
 
         {/* Canal */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Canal</label>
+          <label className="text-sm font-medium text-center block">Canal</label>
           <div className="flex gap-2">
             {CANAIS.map(c => (
               <button key={c} onClick={() => setCanal(c)} className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-[0.97] ${canal === c ? "bg-secondary text-secondary-foreground" : "bg-card border hover:bg-muted"}`}>{c}</button>
@@ -319,7 +319,7 @@ export default function Venda() {
 
         {/* Data da venda */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Data da venda</label>
+          <label className="text-sm font-medium text-center block">Data da venda</label>
           <input
             type="date"
             max={todayStr}
@@ -334,7 +334,7 @@ export default function Venda() {
 
         {/* Cliente */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Cliente (opcional)</label>
+          <label className="text-sm font-medium text-center block">Cliente (opcional)</label>
           {!semCadastro && !showNovoCliente && !selectedCliente && (
             <>
               <div className="relative">
@@ -377,7 +377,7 @@ export default function Venda() {
 
         {/* Observação */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Observação</label>
+          <label className="text-sm font-medium text-center block">Observação</label>
           <textarea rows={2} className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Alguma observação..." value={observacao} onChange={e => setObservacao(e.target.value)} />
         </div>
 

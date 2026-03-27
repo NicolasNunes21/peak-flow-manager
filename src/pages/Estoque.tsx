@@ -327,7 +327,6 @@ export default function Estoque() {
               <tr className="border-b text-muted-foreground">
                 {[
                   { key: 'status', label: '' },
-                  { key: 'sku', label: 'SKU' },
                   { key: 'nome', label: 'Produto' },
                   { key: 'marca', label: 'Marca' },
                   { key: 'categoria', label: 'Cat.' },
@@ -336,10 +335,7 @@ export default function Estoque() {
                   { key: 'preco_venda', label: 'Venda' },
                   { key: 'margem', label: 'Margem' },
                   { key: 'estoque_min', label: 'Mín' },
-                  { key: 'pto_reposicao', label: 'Repos.' },
-                  { key: 'valor_estoque', label: 'Val. Est.' },
                   { key: 'validade', label: 'Validade' },
-                  { key: 'classe_abc', label: 'ABC' },
                 ].map(col => (
                   <th key={col.key} className="px-2 py-2 text-left font-medium whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => col.key !== 'status' && col.key !== 'margem' && col.key !== 'valor_estoque' && toggleSort(col.key)}>
                     <span className="flex items-center gap-1">{col.label} {sortCol === col.key && <ArrowUpDown size={10} />}</span>
@@ -360,7 +356,6 @@ export default function Estoque() {
                   return (
                     <tr key={p.id} className="border-b bg-accent/20">
                       <td className="px-2 py-1"><span className={`inline-block w-2 h-2 rounded-full ${status === 'repor' ? 'bg-destructive' : status === 'atencao' ? 'bg-warning' : 'bg-success'}`} /></td>
-                      <td className="px-2 py-1"><input className="w-16 px-1 py-0.5 border rounded text-xs" value={inlineData.sku || ''} onChange={e => setInlineData(d => ({ ...d, sku: e.target.value }))} /></td>
                       <td className="px-2 py-1"><input className="w-32 px-1 py-0.5 border rounded text-xs" value={inlineData.nome || ''} onChange={e => setInlineData(d => ({ ...d, nome: e.target.value }))} /></td>
                       <td className="px-2 py-1">
                         <select className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.marca || ''} onChange={e => setInlineData(d => ({ ...d, marca: e.target.value }))}>
@@ -379,10 +374,7 @@ export default function Estoque() {
                       <td className="px-2 py-1"><input type="number" step="0.01" className="w-16 px-1 py-0.5 border rounded text-xs" value={inlineData.preco_venda ?? 0} onChange={e => setInlineData(d => ({ ...d, preco_venda: parseFloat(e.target.value) || 0 }))} /></td>
                       <td className="px-2 py-1">—</td>
                       <td className="px-2 py-1"><input type="number" className="w-10 px-1 py-0.5 border rounded text-xs" value={inlineData.estoque_min ?? 0} onChange={e => setInlineData(d => ({ ...d, estoque_min: parseInt(e.target.value) || 0 }))} /></td>
-                      <td className="px-2 py-1"><input type="number" className="w-10 px-1 py-0.5 border rounded text-xs" value={inlineData.pto_reposicao ?? 0} onChange={e => setInlineData(d => ({ ...d, pto_reposicao: parseInt(e.target.value) || 0 }))} /></td>
-                      <td className="px-2 py-1">—</td>
                       <td className="px-2 py-1"><input type="date" className="w-24 px-1 py-0.5 border rounded text-xs" value={inlineData.validade || ''} onChange={e => setInlineData(d => ({ ...d, validade: e.target.value }))} /></td>
-                      <td className="px-2 py-1"><input className="w-8 px-1 py-0.5 border rounded text-xs" value={inlineData.classe_abc || ''} onChange={e => setInlineData(d => ({ ...d, classe_abc: e.target.value }))} /></td>
                       <td className="px-2 py-1 flex gap-1">
                         <button onClick={() => updateMutation.mutate({ id: p.id, updates: inlineData })} className="p-1 rounded bg-success text-success-foreground"><Check size={12} /></button>
                         <button onClick={() => setEditingInline(null)} className="p-1 rounded bg-muted"><X size={12} /></button>
@@ -394,7 +386,6 @@ export default function Estoque() {
                 return (
                   <tr key={p.id} className={`border-b hover:bg-muted/30 ${i % 2 === 1 ? 'bg-muted/20' : ''}`}>
                     <td className="px-2 py-2"><span className={`inline-block w-2 h-2 rounded-full ${status === 'repor' ? 'bg-destructive' : status === 'atencao' ? 'bg-warning' : 'bg-success'}`} /></td>
-                    <td className="px-2 py-2 text-muted-foreground">{p.sku}</td>
                     <td className="px-2 py-2 font-medium max-w-[150px] truncate">{p.nome}</td>
                     <td className="px-2 py-2">{p.marca}</td>
                     <td className="px-2 py-2">{p.categoria}</td>
@@ -403,12 +394,9 @@ export default function Estoque() {
                     <td className="px-2 py-2">{formatCurrency(p.preco_venda || 0)}</td>
                     <td className={`px-2 py-2 font-medium ${margemColorClass(margem)}`}>{formatPercent(margem)}</td>
                     <td className="px-2 py-2">{p.estoque_min}</td>
-                    <td className="px-2 py-2">{p.pto_reposicao}</td>
-                    <td className="px-2 py-2 italic text-muted-foreground">{formatCurrency(valEstoque)}</td>
                     <td className={`px-2 py-2 ${diasVal !== null && diasVal < 30 ? 'text-warning font-medium' : ''}`}>
                       {p.validade ? (diasVal !== null && diasVal < 30 ? `${diasVal}d` : p.validade) : '—'}
                     </td>
-                    <td className="px-2 py-2">{p.classe_abc}</td>
                     <td className="px-2 py-2">
                       <button onClick={() => { setEditingInline(p.id); setInlineData({ ...p }); }} className="p-1 rounded hover:bg-muted"><Pencil size={12} /></button>
                     </td>

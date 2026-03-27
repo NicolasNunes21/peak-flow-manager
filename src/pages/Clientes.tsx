@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate, diasAtras, getWhatsAppScript, formatPercent } from "@/lib/format";
-import { Plus, Search, MessageCircle, ChevronRight, X, Users, Phone, Crown, DollarSign, ArrowLeft, Clock, ShoppingCart } from "lucide-react";
+import { Plus, Search, MessageCircle, ChevronRight, X, Users, Phone, Crown, DollarSign, ArrowLeft, Clock, ShoppingCart, Pencil, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,8 @@ export default function Clientes() {
   const [novoNome, setNovoNome] = useState("");
   const [novoWhats, setNovoWhats] = useState("");
   const [novoCanal, setNovoCanal] = useState("Loja física");
+  const [editingCliente, setEditingCliente] = useState(false);
+  const [editForm, setEditForm] = useState({ nome: "", whatsapp: "", canal_aquisicao: "Loja física", status: "Novo" });
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
@@ -62,6 +64,29 @@ export default function Clientes() {
   const updateObsMutation = useMutation({
     mutationFn: async ({ id, observacao }: { id: string; observacao: string }) => {
       await supabase.from("clientes").update({ observacao }).eq("id", id);
+    },
+  });
+
+  const updateClienteMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
+      await supabase.from("clientes").update(updates).eq("id", id);
+    },
+    onSuccess: (_, { id, updates }) => {
+      toast({ title: "✅ Cliente atualizado!" });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      setDetailCliente((prev: any) => prev ? { ...prev, ...updates } : null);
+      setEditingCliente(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("clientes").delete().eq("id", id);
+    },
+    onSuccess: () => {
+      toast({ title: "🗑️ Cliente excluído" });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      setDetailCliente(null);
     },
   });
 
@@ -133,21 +158,61 @@ export default function Clientes() {
 
     return (
       <div className="space-y-4 animate-fade-in">
-        <button onClick={() => setDetailCliente(null)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft size={16} /> Voltar
-        </button>
-
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-bold text-lg">{c.nome.charAt(0)}</div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">{c.nome}</h1>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[c.status || 'Novo']}`}>{c.status}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{c.canal_aquisicao} · Desde {c.data_primeira_compra ? formatDate(c.data_primeira_compra) : '—'}</p>
-            {c.whatsapp && <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageCircle size={11} /> {c.whatsapp}</p>}
+        <div className="flex items-center justify-between">
+          <button onClick={() => { setDetailCliente(null); setEditingCliente(false); }} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft size={16} /> Voltar
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setEditForm({ nome: c.nome, whatsapp: c.whatsapp || '', canal_aquisicao: c.canal_aquisicao || 'Loja física', status: c.status || 'Novo' }); setEditingCliente(true); }} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil size={15} /></button>
+            <button onClick={() => { if (window.confirm(`Excluir ${c.nome}?`)) deleteMutation.mutate(c.id); }} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 size={15} /></button>
           </div>
         </div>
+
+        {editingCliente ? (
+          <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+            <h3 className="text-sm font-semibold text-secondary">Editar cliente</h3>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Nome</label>
+              <input className="w-full px-3 py-2 rounded-lg border bg-background text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-primary" value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">WhatsApp</label>
+              <input className="w-full px-3 py-2 rounded-lg border bg-background text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-primary" value={editForm.whatsapp} onChange={e => setEditForm(f => ({ ...f, whatsapp: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Canal de aquisição</label>
+              <div className="flex gap-2 mt-1 flex-wrap">
+                {CANAIS_AQUISICAO.map(canal => (
+                  <button key={canal} onClick={() => setEditForm(f => ({ ...f, canal_aquisicao: canal }))} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${editForm.canal_aquisicao === canal ? "bg-secondary text-secondary-foreground" : "bg-muted hover:bg-muted/80"}`}>{canal}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <div className="flex gap-2 mt-1 flex-wrap">
+                {['Novo', 'Ativo', 'VIP', 'Inativo'].map(s => (
+                  <button key={s} onClick={() => setEditForm(f => ({ ...f, status: s }))} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${editForm.status === s ? "bg-secondary text-secondary-foreground" : "bg-muted hover:bg-muted/80"}`}>{s}</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => updateClienteMutation.mutate({ id: c.id, updates: editForm })} disabled={!editForm.nome || updateClienteMutation.isPending} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">Salvar</button>
+              <button onClick={() => setEditingCliente(false)} className="px-4 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted">Cancelar</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-bold text-lg">{c.nome.charAt(0)}</div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold">{c.nome}</h1>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[c.status || 'Novo']}`}>{c.status}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{c.canal_aquisicao} · Desde {c.data_primeira_compra ? formatDate(c.data_primeira_compra) : '—'}</p>
+              {c.whatsapp && <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageCircle size={11} /> {c.whatsapp}</p>}
+            </div>
+          </div>
+        )}
 
         {/* Metric cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -48,7 +48,7 @@ export default function Clientes() {
   const createMutation = useMutation({
     mutationFn: async () => {
       await supabase.from("clientes").insert({
-        nome: novoNome, whatsapp: novoWhats || null, canal_aquisicao: novoCanal,
+        nome: novoNome.trim(), whatsapp: novoWhats || null, canal_aquisicao: novoCanal,
         data_primeira_compra: new Date().toISOString().split('T')[0], status: 'Novo',
       });
     },
@@ -62,6 +62,9 @@ export default function Clientes() {
   const updateObsMutation = useMutation({
     mutationFn: async ({ id, observacao }: { id: string; observacao: string }) => {
       await supabase.from("clientes").update({ observacao }).eq("id", id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
     },
   });
 
@@ -219,7 +222,7 @@ export default function Clientes() {
         {/* Notes */}
         <div className="bg-card rounded-xl p-4 shadow-sm space-y-2">
           <h3 className="text-sm font-semibold text-secondary">Observações</h3>
-          <textarea rows={3} className="w-full px-3 py-2 rounded-lg border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary" defaultValue={c.observacao || ''} onBlur={e => { if (e.target.value !== (c.observacao || '')) { updateObsMutation.mutate({ id: c.id, observacao: e.target.value }); queryClient.invalidateQueries({ queryKey: ["clientes"] }); } }} placeholder="Notas sobre o cliente..." />
+          <textarea rows={3} className="w-full px-3 py-2 rounded-lg border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary" defaultValue={c.observacao || ''} onBlur={e => { if (e.target.value !== (c.observacao || '')) { updateObsMutation.mutate({ id: c.id, observacao: e.target.value }); } }} placeholder="Notas sobre o cliente..." />
         </div>
 
         <button onClick={() => navigate(`/venda?cliente=${c.id}`)} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium active:scale-[0.98]">

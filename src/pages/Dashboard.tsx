@@ -156,10 +156,10 @@ export default function Dashboard() {
 
   // Resumo do mês
   const custosMes = allMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
-  const custosFixos = (custosFixosData || []).reduce((s, c) => s + Number(c.valor), 0) || 2000;
+  const custosFixos = (custosFixosData || []).reduce((s, c) => s + Number(c.valor), 0);
   const ebitda = fatMes - custosMes - custosFixos;
   const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
-  const breakEven = margemMediaMes > 0 ? (custosFixos / (margemMediaMes / 100)) : 6450;
+  const breakEven = margemMediaMes > 0 && custosFixos > 0 ? (custosFixos / (margemMediaMes / 100)) : 0;
   const diasPassados = today.getDate();
   const projecao = diasPassados > 0 ? (fatMes / diasPassados) * 30 : 0;
 
@@ -215,16 +215,17 @@ export default function Dashboard() {
             {clientesRecontato!.map(c => {
               const dias = diasAtras(c.data_ultima_compra || c.created_at || '');
               const script = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
-              const whatsUrl = `https://wa.me/55${c.whatsapp}?text=${encodeURIComponent(script)}`;
+              const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
+              const whatsUrl = whatsNumero ? `https://api.whatsapp.com/send/?phone=55${whatsNumero}&text=${encodeURIComponent(script)}&type=phone_number&app_absent=0` : null;
               return (
                 <div key={c.id} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{c.nome}</p>
                     <p className="text-xs text-muted-foreground">há {dias} dias sem compra</p>
                   </div>
-                  <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
+                  {whatsUrl && <button onClick={() => { const w = window.open('', '_blank'); if (w) w.location.href = whatsUrl; }} className="shrink-0 w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
                     <MessageCircle size={16} className="text-success-foreground" />
-                  </a>
+                  </button>}
                 </div>
               );
             })}

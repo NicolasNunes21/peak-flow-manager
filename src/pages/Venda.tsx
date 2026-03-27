@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
@@ -47,13 +47,17 @@ export default function Venda() {
     queryKey: ["clientes"],
     queryFn: async () => {
       const { data } = await supabase.from("clientes").select("*").order("nome");
-      if (preSelectedClienteId && !selectedCliente) {
-        const found = (data || []).find(c => c.id === preSelectedClienteId);
-        if (found) setSelectedCliente(found);
-      }
       return data || [];
     },
   });
+
+  // Pre-select client from URL param after data loads
+  useEffect(() => {
+    if (preSelectedClienteId && clientes && !selectedCliente) {
+      const found = clientes.find((c: any) => c.id === preSelectedClienteId);
+      if (found) setSelectedCliente(found);
+    }
+  }, [clientes, preSelectedClienteId]);
 
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -110,7 +114,7 @@ export default function Venda() {
   const margemPct = precoVenda > 0 ? ((precoVenda - custoUnit) / precoVenda) * 100 : 0;
   const margemRs = precoVenda - custoUnit;
   const margemTotal = margemRs * quantidade;
-  const canSubmit = selectedProduto && formaPgto;
+  const canSubmit = selectedProduto && formaPgto && precoVenda > 0 && quantidade >= 1;
 
   const todayStr = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; })();
 

@@ -6,14 +6,14 @@
 
 @layer base {
   :root {
-    --background: 210 25% 96%;
-    --foreground: 0 0% 10%;
+    --background: 220 20% 96%;
+    --foreground: 220 15% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 220 15% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    --popover-foreground: 220 15% 12%;
 
     --primary: 193 100% 42%;
     --primary-foreground: 0 0% 100%;
@@ -21,8 +21,8 @@
     --secondary: 217 57% 26%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 20% 92%;
-    --muted-foreground: 210 10% 46%;
+    --muted: 220 20% 92%;
+    --muted-foreground: 220 10% 48%;
 
     --accent: 193 100% 95%;
     --accent-foreground: 193 100% 30%;
@@ -30,11 +30,11 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 90%;
-    --input: 210 20% 90%;
+    --border: 220 18% 88%;
+    --input: 220 18% 88%;
     --ring: 193 100% 42%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
@@ -57,13 +57,45 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* iOS-style thin scrollbars */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  /* iOS-style glass card */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  /* Smooth press animation */
+  .pressable {
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .pressable:active {
+    transform: scale(0.97);
+    opacity: 0.85;
   }
 }

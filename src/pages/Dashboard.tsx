@@ -103,11 +103,6 @@ export default function Dashboard() {
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
 
-  // activeDayGroups/custoPeriodo moved after weekDayGroups declaration
-  const fatPeriodo = periodo === 'semana' ? fatSemana : fatMes;
-  const metaPeriodo = periodo === 'semana' ? metaSemana : metaMes;
-  const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
-  const margemPctPeriodo = fatPeriodo > 0 ? ((fatPeriodo - custoPeriodo) / fatPeriodo) * 100 : 0;
 
   // Chart data
   const chartData = Array.from({ length: 7 }, (_, i) => {

@@ -377,7 +377,7 @@ export default function Venda() {
 
         {/* Observação */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Observação</label>
+          <label className="text-sm font-medium text-center block">Observação</label>
           <textarea rows={2} className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Alguma observação..." value={observacao} onChange={e => setObservacao(e.target.value)} />
         </div>
 

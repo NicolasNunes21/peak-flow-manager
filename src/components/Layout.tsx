@@ -3,7 +3,7 @@ import { LayoutDashboard, ShoppingCart, Package, Users, Bell, Settings } from "l
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const navItems = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/venda", label: "Venda", icon: ShoppingCart, highlight: true },
   { path: "/estoque", label: "Estoque", icon: Package },
   { path: "/clientes", label: "Clientes", icon: Users },
@@ -24,7 +24,7 @@ export default function Layout() {
           </div>
           <nav className="flex flex-col gap-0.5 px-3 pt-3 flex-1">
             {navItems.map((item) => {
-              const active = location.pathname === item.path || (item.path === "/dashboard" && location.pathname === "/");
+              const active = location.pathname === item.path;
               return (
                 <button
                   key={item.path}
@@ -88,7 +88,7 @@ export default function Layout() {
           style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(24px) saturate(1.8)', WebkitBackdropFilter: 'blur(24px) saturate(1.8)', borderTop: '0.5px solid rgba(0,0,0,0.12)' }}>
           <div className="flex items-end justify-around py-2 px-2">
             {navItems.map((item) => {
-              const active = location.pathname === item.path || (item.path === "/dashboard" && location.pathname === "/");
+              const active = location.pathname === item.path;
               if (item.highlight) {
                 return (
                   <button key={item.path} onClick={() => navigate(item.path)} className="flex flex-col items-center -mt-5 px-3">

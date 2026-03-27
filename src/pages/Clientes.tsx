@@ -71,7 +71,7 @@ export default function Clientes() {
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
       await supabase.from("clientes").update(updates).eq("id", id);
     },
-    onSuccess: (_, { id, updates }) => {
+    onSuccess: (_, { updates }) => {
       toast({ title: "✅ Cliente atualizado!" });
       queryClient.invalidateQueries({ queryKey: ["clientes"] });
       setDetailCliente((prev: any) => prev ? { ...prev, ...updates } : null);

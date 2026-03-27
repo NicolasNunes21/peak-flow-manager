@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [openSheet, setOpenSheet] = useState<string | null>(null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [selectedChartDay, setSelectedChartDay] = useState<number | null>(null);
+  const [periodo, setPeriodo] = useState<'semana' | 'mes'>('semana');
 
   const { data: vendas, isLoading: loadingVendas } = useQuery({
     queryKey: ["vendas-dashboard"],
@@ -72,6 +73,39 @@ export default function Dashboard() {
   const fatMes = allMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
   const numVendasMes = allMes.length;
   const ticketMedio = numVendasMes > 0 ? fatMes / numVendasMes : 0;
+
+  const metaMes = 7000;
+
+  // Monthly chart data
+  const chartDataMes = Array.from({ length: diasPassados }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), i + 1);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayVendas = allMes.filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
+    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
+    const ticket = dayVendas.length > 0 ? fat / dayVendas.length : 0;
+    const prodMap: Record<string, { nome: string; total: number }> = {};
+    dayVendas.forEach(v => { const k = v.produto_nome || ''; if (!prodMap[k]) prodMap[k] = { nome: k, total: 0 }; prodMap[k].total += v.preco_venda * v.quantidade; });
+    return { dia: String(i + 1), valor: fat, vendas: dayVendas, numVendas: dayVendas.length, ticket, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0, topProds: Object.values(prodMap).sort((a, b) => b.total - a.total).slice(0, 3), dateStr: formatDate(d) };
+  });
+
+  // Monthly day groups for sheet
+  const monthDayGroups = Array.from({ length: diasPassados }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), diasPassados - i);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayVendas = allMes.filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
+    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
+    return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
+  });
+
+  const activeDayGroups = periodo === 'semana' ? weekDayGroups : monthDayGroups;
+  const fatPeriodo = periodo === 'semana' ? fatSemana : fatMes;
+  const metaPeriodo = periodo === 'semana' ? metaSemana : metaMes;
+  const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
+  const margemPctPeriodo = fatPeriodo > 0 ? ((fatPeriodo - custoPeriodo) / fatPeriodo) * 100 : 0;
 
   // Chart data
   const chartData = Array.from({ length: 7 }, (_, i) => {
@@ -134,6 +168,16 @@ export default function Dashboard() {
   });
   const catList = Object.entries(catBreakdown).map(([cat, d]) => ({ cat, ...d, margem: d.total > 0 ? ((d.total - d.custo) / d.total) * 100 : 0 })).sort((a, b) => b.total - a.total);
 
+  const catBreakdownMes: Record<string, { total: number; custo: number }> = {};
+  allMes.forEach(v => {
+    const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';
+    if (!catBreakdownMes[cat]) catBreakdownMes[cat] = { total: 0, custo: 0 };
+    catBreakdownMes[cat].total += v.preco_venda * v.quantidade;
+    catBreakdownMes[cat].custo += v.custo_unit * v.quantidade;
+  });
+  const catListMes = Object.entries(catBreakdownMes).map(([cat, d]) => ({ cat, ...d, margem: d.total > 0 ? ((d.total - d.custo) / d.total) * 100 : 0 })).sort((a, b) => b.total - a.total);
+  const activeCatList = periodo === 'semana' ? catList : catListMes;
+
   // Ticket médio breakdown
   const faixas = [
     { label: '< R$50', min: 0, max: 50 },
@@ -177,6 +221,12 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground">{getDataHojeCompleta()}</p>
       </div>
 
+      {/* Period toggle */}
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
+        <button onClick={() => setPeriodo('semana')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${periodo === 'semana' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>7 dias</button>
+        <button onClick={() => setPeriodo('mes')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${periodo === 'mes' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Mês</button>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button onClick={() => setOpenSheet('hoje')} className="rounded-xl p-4 shadow-sm space-y-2 bg-primary text-primary-foreground text-left transition-transform active:scale-[0.97]">
@@ -186,18 +236,18 @@ export default function Dashboard() {
         </button>
 
         <button onClick={() => setOpenSheet('semana')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
-          <div className="flex items-center gap-2 text-muted-foreground"><Target size={16} /><span className="text-xs font-medium">Fat. semana</span></div>
-          <p className="text-lg font-bold">{formatCurrency(fatSemana)}</p>
+          <div className="flex items-center gap-2 text-muted-foreground"><Target size={16} /><span className="text-xs font-medium">{periodo === 'semana' ? 'Fat. semana' : 'Fat. mês'}</span></div>
+          <p className="text-lg font-bold">{formatCurrency(fatPeriodo)}</p>
           <div className="w-full bg-muted rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${Math.min((fatSemana / metaSemana) * 100, 100)}%` }} />
+            <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${Math.min((fatPeriodo / metaPeriodo) * 100, 100)}%` }} />
           </div>
-          <p className="text-[10px] text-muted-foreground">{formatCurrency(fatSemana)} / {formatCurrency(metaSemana)}</p>
+          <p className="text-[10px] text-muted-foreground">{formatCurrency(fatPeriodo)} / {formatCurrency(metaPeriodo)}</p>
         </button>
 
         <button onClick={() => setOpenSheet('margem')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
           <div className="flex items-center gap-2 text-muted-foreground"><Percent size={16} /><span className="text-xs font-medium">Margem bruta</span></div>
-          <p className={`text-xl font-bold ${margemColorClass(margemPct)}`}>{hasData ? formatPercent(margemPct) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">{hasData ? `${formatCurrency(fatSemana - custoSemana)} de lucro bruto` : 'Sem dados'}</p>
+          <p className={`text-xl font-bold ${margemColorClass(margemPctPeriodo)}`}>{hasData ? formatPercent(margemPctPeriodo) : '—'}</p>
+          <p className="text-[10px] text-muted-foreground">{hasData ? `${formatCurrency(fatPeriodo - custoPeriodo)} de lucro bruto` : 'Sem dados'}</p>
         </button>
 
         <button onClick={() => setOpenSheet('ticket')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
@@ -237,12 +287,12 @@ export default function Dashboard() {
       {/* Chart — clickable bars */}
       <div className="bg-card rounded-xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-secondary">Faturamento — últimos 7 dias</h3>
+          <h3 className="text-sm font-semibold text-secondary">Faturamento — {periodo === 'semana' ? 'últimos 7 dias' : 'mês atual'}</h3>
           <BarChart3 size={16} className="text-muted-foreground" />
         </div>
         {hasData ? (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} onClick={(e) => {
+            <BarChart data={periodo === 'semana' ? chartData : chartDataMes} onClick={(e) => {
               if (e && e.activeTooltipIndex !== undefined) {
                 setSelectedChartDay(e.activeTooltipIndex);
                 setOpenSheet('chartDay');
@@ -365,12 +415,12 @@ export default function Dashboard() {
         </SheetContent>
       </Sheet>
 
-      {/* Fat. semana */}
+      {/* Fat. semana/mês */}
       <Sheet open={openSheet === 'semana'} onOpenChange={o => !o && setOpenSheet(null)}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader><SheetTitle>Faturamento da semana</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{periodo === 'semana' ? 'Faturamento da semana' : 'Faturamento do mês'}</SheetTitle></SheetHeader>
           <div className="space-y-2 mt-4">
-            {weekDayGroups.map((dg, i) => (
+            {activeDayGroups.map((dg, i) => (
               <div key={i} className="border rounded-xl overflow-hidden">
                 <button onClick={() => setExpandedDay(expandedDay === dg.dateStr ? null : dg.dateStr)} className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left">
                   <div>
@@ -406,10 +456,10 @@ export default function Dashboard() {
             <div className="bg-muted/50 rounded-xl p-3 space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Como é calculada</p>
               <p className="text-xs">Margem bruta = (Preço de venda − Custo unitário) ÷ Preço de venda × 100</p>
-              <p className="text-xs text-muted-foreground">Considera todas as vendas dos últimos 7 dias.</p>
+              <p className="text-xs text-muted-foreground">Considera todas as vendas {periodo === 'semana' ? 'dos últimos 7 dias' : 'do mês atual'}.</p>
             </div>
-            {catList.length === 0 && <p className="text-sm text-muted-foreground">Sem dados de vendas.</p>}
-            {catList.map(c => (
+            {activeCatList.length === 0 && <p className="text-sm text-muted-foreground">Sem dados de vendas.</p>}
+            {activeCatList.map(c => (
               <div key={c.cat} className="flex items-center justify-between p-3 border rounded-xl">
                 <div>
                   <p className="text-sm font-medium">{c.cat}</p>

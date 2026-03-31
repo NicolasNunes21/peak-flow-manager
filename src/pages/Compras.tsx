@@ -32,8 +32,11 @@ export default function Compras() {
   const [npNome, setNpNome] = useState("");
   const [npMarca, setNpMarca] = useState("");
   const [npCategoria, setNpCategoria] = useState("");
-  const [npPrecoVenda, setNpPrecoVenda] = useState<number>(0);
   const [npEstoqueMin, setNpEstoqueMin] = useState<number>(5);
+  const [showNovaMarca, setShowNovaMarca] = useState(false);
+  const [novaMarcaNome, setNovaMarcaNome] = useState("");
+  const [showNovaCategoria, setShowNovaCategoria] = useState(false);
+  const [novaCategoriaNome, setNovaCategoriaNome] = useState("");
 
   // History state
   const [expandedCompra, setExpandedCompra] = useState<string | null>(null);
@@ -113,7 +116,8 @@ export default function Compras() {
     setSelectedProduto(null); setProdutoSearch(""); setShowNovoProduto(false);
     setQuantidade(1); setCustoUnit(0); setPrecoVenda(0); setFornecedor(""); setObservacao("");
     setShowNovoFornecedor(false); setNovoFornecedorNome("");
-    setNpNome(""); setNpMarca(""); setNpCategoria(""); setNpPrecoVenda(0); setNpEstoqueMin(5);
+    setNpNome(""); setNpMarca(""); setNpCategoria(""); setNpEstoqueMin(5);
+    setShowNovaMarca(false); setNovaMarcaNome(""); setShowNovaCategoria(false); setNovaCategoriaNome("");
     setDataCompra(todayStr);
   };
 
@@ -130,7 +134,7 @@ export default function Compras() {
           marca: npMarca || null,
           categoria: npCategoria || null,
           custo_unit: custoUnit,
-          preco_venda: npPrecoVenda || null,
+          preco_venda: precoVenda || null,
           estoque_min: npEstoqueMin || null,
           qtd_atual: 0, // will be updated below
           fornecedor: fornecedor,
@@ -194,6 +198,32 @@ export default function Compras() {
       setNovoFornecedorNome("");
       setShowNovoFornecedor(false);
       toast({ title: "✅ Fornecedor cadastrado" });
+    },
+  });
+
+  const novaMarcaMutation = useMutation({
+    mutationFn: async (nome: string) => {
+      await supabase.from("marcas").insert({ nome });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["marcas"] });
+      setNpMarca(novaMarcaNome.trim());
+      setNovaMarcaNome("");
+      setShowNovaMarca(false);
+      toast({ title: "✅ Marca cadastrada" });
+    },
+  });
+
+  const novaCategoriaMutation = useMutation({
+    mutationFn: async (nome: string) => {
+      await supabase.from("categorias").insert({ nome });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categorias"] });
+      setNpCategoria(novaCategoriaNome.trim());
+      setNovaCategoriaNome("");
+      setShowNovaCategoria(false);
+      toast({ title: "✅ Categoria cadastrada" });
     },
   });
 
@@ -288,31 +318,45 @@ export default function Compras() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Marca</label>
-                  <select className="w-full px-3 py-2 rounded-lg border bg-card text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-primary" value={npMarca} onChange={e => setNpMarca(e.target.value)}>
-                    <option value="">Selecionar...</option>
-                    {(marcas || []).map(m => <option key={m.id} value={m.nome}>{m.nome}</option>)}
-                  </select>
+                  {!showNovaMarca ? (
+                    <div className="flex gap-1 mt-1">
+                      <select className="flex-1 px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={npMarca} onChange={e => setNpMarca(e.target.value)}>
+                        <option value="">Selecionar...</option>
+                        {(marcas || []).map(m => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+                      </select>
+                      <button onClick={() => setShowNovaMarca(true)} className="px-2 py-2 rounded-lg border bg-card hover:bg-muted" title="Nova marca"><Plus size={14} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1 mt-1">
+                      <input autoFocus className="flex-1 px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Nome da marca" value={novaMarcaNome} onChange={e => setNovaMarcaNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && novaMarcaNome.trim()) novaMarcaMutation.mutate(novaMarcaNome.trim()); }} />
+                      <button disabled={!novaMarcaNome.trim()} onClick={() => novaMarcaMutation.mutate(novaMarcaNome.trim())} className="px-2 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"><Plus size={14} /></button>
+                      <button onClick={() => { setShowNovaMarca(false); setNovaMarcaNome(""); }} className="px-2 py-2 rounded-lg border"><X size={14} /></button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Categoria</label>
-                  <select className="w-full px-3 py-2 rounded-lg border bg-card text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-primary" value={npCategoria} onChange={e => setNpCategoria(e.target.value)}>
-                    <option value="">Selecionar...</option>
-                    {(categorias || []).map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                  </select>
+                  {!showNovaCategoria ? (
+                    <div className="flex gap-1 mt-1">
+                      <select className="flex-1 px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={npCategoria} onChange={e => setNpCategoria(e.target.value)}>
+                        <option value="">Selecionar...</option>
+                        {(categorias || []).map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                      </select>
+                      <button onClick={() => setShowNovaCategoria(true)} className="px-2 py-2 rounded-lg border bg-card hover:bg-muted" title="Nova categoria"><Plus size={14} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1 mt-1">
+                      <input autoFocus className="flex-1 px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Nome da categoria" value={novaCategoriaNome} onChange={e => setNovaCategoriaNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && novaCategoriaNome.trim()) novaCategoriaMutation.mutate(novaCategoriaNome.trim()); }} />
+                      <button disabled={!novaCategoriaNome.trim()} onClick={() => novaCategoriaMutation.mutate(novaCategoriaNome.trim())} className="px-2 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"><Plus size={14} /></button>
+                      <button onClick={() => { setShowNovaCategoria(false); setNovaCategoriaNome(""); }} className="px-2 py-2 rounded-lg border"><X size={14} /></button>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Preço de venda</label>
-                  <div className="relative mt-1">
-                    <span className="absolute left-3 top-2 text-xs text-muted-foreground">R$</span>
-                    <input type="number" step="0.01" className="w-full pl-9 pr-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={npPrecoVenda || ''} onChange={e => setNpPrecoVenda(parseFloat(e.target.value) || 0)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Estoque mínimo</label>
-                  <input type="number" className="w-full px-3 py-2 rounded-lg border bg-card text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-primary" value={npEstoqueMin || ''} onChange={e => setNpEstoqueMin(parseInt(e.target.value) || 0)} />
-                </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Estoque mínimo</label>
+                <input type="number" className="w-full px-3 py-2 rounded-lg border bg-card text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-primary" value={npEstoqueMin || ''} onChange={e => setNpEstoqueMin(parseInt(e.target.value) || 0)} />
+                <p className="text-[10px] text-muted-foreground mt-1">Preço de venda: preencha o campo abaixo — vale para o cálculo de margem e é salvo no produto.</p>
               </div>
             </div>
           )}

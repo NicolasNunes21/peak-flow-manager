@@ -210,8 +210,9 @@ export default function Dashboard() {
   // Empty state
   const hasData = (vendas || []).length > 0 || allMes.length > 0;
 
-  // Selected chart day drill-down
-  const chartDayData = selectedChartDay !== null ? chartData[selectedChartDay] : null;
+  // Selected chart day drill-down — use correct dataset based on active period
+  const activeChartData = periodo === 'mes' ? chartDataMes : chartData;
+  const chartDayData = selectedChartDay !== null ? activeChartData[selectedChartDay] ?? null : null;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -292,7 +293,7 @@ export default function Dashboard() {
         </div>
         {hasData ? (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={periodo === 'semana' ? chartData : chartDataMes} onClick={(e) => {
+            <BarChart data={activeChartData} onClick={(e) => {
               if (e && e.activeTooltipIndex !== undefined) {
                 setSelectedChartDay(e.activeTooltipIndex);
                 setOpenSheet('chartDay');

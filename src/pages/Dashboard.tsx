@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [openSheet, setOpenSheet] = useState<string | null>(null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [selectedChartDay, setSelectedChartDay] = useState<number | null>(null);
+  const [periodo, setPeriodo] = useState<'semana' | 'mes'>('semana');
 
   const { data: vendas, isLoading: loadingVendas } = useQuery({
     queryKey: ["vendas-dashboard"],
@@ -102,6 +103,35 @@ export default function Dashboard() {
     };
   });
 
+  // Monthly chart data — one entry per day of current month
+  const daysInMonth = today.getDate(); // days elapsed so far (including today)
+  const chartDataMes = Array.from({ length: daysInMonth }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), i + 1);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayVendas = (vendasMes || []).filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
+    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
+    const ticket = dayVendas.length > 0 ? fat / dayVendas.length : 0;
+    const prodMap: Record<string, { nome: string; total: number }> = {};
+    dayVendas.forEach(v => {
+      const k = v.produto_nome || '';
+      if (!prodMap[k]) prodMap[k] = { nome: k, total: 0 };
+      prodMap[k].total += v.preco_venda * v.quantidade;
+    });
+    const topProds = Object.values(prodMap).sort((a, b) => b.total - a.total).slice(0, 3);
+    return {
+      dia: String(i + 1),
+      valor: fat,
+      vendas: dayVendas,
+      numVendas: dayVendas.length,
+      ticket,
+      margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0,
+      topProds,
+      dateStr: formatDate(d),
+    };
+  });
+
   // Top 5 produtos do mês
   const produtoMapMes: Record<string, { nome: string; total: number; qtd: number; custo: number }> = {};
   allMes.forEach(v => {
@@ -166,8 +196,9 @@ export default function Dashboard() {
   // Empty state
   const hasData = (vendas || []).length > 0 || allMes.length > 0;
 
-  // Selected chart day drill-down
-  const chartDayData = selectedChartDay !== null ? chartData[selectedChartDay] : null;
+  // Selected chart day drill-down — reads from correct dataset based on period
+  const activeChartData = periodo === 'mes' ? chartDataMes : chartData;
+  const chartDayData = selectedChartDay !== null ? activeChartData[selectedChartDay] ?? null : null;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -175,6 +206,12 @@ export default function Dashboard() {
       <div>
         <h1 className="text-lg font-bold text-secondary">{getSaudacao()}</h1>
         <p className="text-sm text-muted-foreground">{getDataHojeCompleta()}</p>
+      </div>
+
+      {/* Period toggle */}
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
+        <button onClick={() => setPeriodo('semana')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${periodo === 'semana' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>7 dias</button>
+        <button onClick={() => setPeriodo('mes')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${periodo === 'mes' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Mês</button>
       </div>
 
       {/* KPI Cards */}
@@ -236,22 +273,22 @@ export default function Dashboard() {
       {/* Chart — clickable bars */}
       <div className="bg-card rounded-xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-secondary">Faturamento — últimos 7 dias</h3>
+          <h3 className="text-sm font-semibold text-secondary">{periodo === 'mes' ? 'Faturamento — mês atual' : 'Faturamento — últimos 7 dias'}</h3>
           <BarChart3 size={16} className="text-muted-foreground" />
         </div>
         {hasData ? (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} onClick={(e) => {
+            <BarChart data={activeChartData} onClick={(e) => {
               if (e && e.activeTooltipIndex !== undefined) {
                 setSelectedChartDay(e.activeTooltipIndex);
                 setOpenSheet('chartDay');
               }
             }}>
-              <XAxis dataKey="dia" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="dia" tick={{ fontSize: periodo === 'mes' ? 10 : 12 }} axisLine={false} tickLine={false} interval={periodo === 'mes' ? 1 : 0} />
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} width={55} />
               <Tooltip formatter={(v: number) => [formatCurrency(v), 'Faturamento']} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} cursor={{ fill: 'hsl(var(--muted))' }} />
               <Bar dataKey="valor" radius={[6, 6, 0, 0]} className="cursor-pointer">
-                {chartData.map((_, i) => (
+                {activeChartData.map((_, i) => (
                   <Cell key={i} fill="hsl(193, 100%, 42%)" />
                 ))}
               </Bar>

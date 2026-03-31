@@ -18,6 +18,7 @@ export default function Compras() {
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [quantidade, setQuantidade] = useState(1);
   const [custoUnit, setCustoUnit] = useState<number>(0);
+  const [precoVenda, setPrecoVenda] = useState<number>(0);
   const [fornecedor, setFornecedor] = useState("");
   const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   const [novoFornecedorNome, setNovoFornecedorNome] = useState("");
@@ -110,7 +111,7 @@ export default function Compras() {
   // Reset form
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setShowNovoProduto(false);
-    setQuantidade(1); setCustoUnit(0); setFornecedor(""); setObservacao("");
+    setQuantidade(1); setCustoUnit(0); setPrecoVenda(0); setFornecedor(""); setObservacao("");
     setShowNovoFornecedor(false); setNovoFornecedorNome("");
     setNpNome(""); setNpMarca(""); setNpCategoria(""); setNpPrecoVenda(0); setNpEstoqueMin(5);
     setDataCompra(todayStr);
@@ -156,14 +157,16 @@ export default function Compras() {
         observacao: observacao || null,
       });
 
-      // Update product stock and cost
+      // Update product stock, cost, and sale price
       if (produtoId) {
         const currentQtd = selectedProduto?.qtd_atual || 0;
-        await supabase.from("produtos").update({
+        const updates: Record<string, any> = {
           qtd_atual: currentQtd + quantidade,
           custo_unit: custoUnit,
           fornecedor: fornecedor,
-        }).eq("id", produtoId);
+        };
+        if (precoVenda > 0) updates.preco_venda = precoVenda;
+        await supabase.from("produtos").update(updates).eq("id", produtoId);
       }
 
       return { produtoNome, quantidade, custoUnit };
@@ -220,7 +223,7 @@ export default function Compras() {
             <p className="text-xs font-medium text-warning">Estoque baixo — precisa repor:</p>
             <div className="flex flex-wrap gap-2">
               {lowStock.map(p => (
-                <button key={p.id} onClick={() => { setSelectedProduto(p); setCustoUnit(p.custo_unit || 0); setFornecedor(p.fornecedor || ''); }} className="px-3 py-1.5 rounded-full text-xs font-medium bg-warning/10 text-warning hover:bg-warning/20 transition-colors">
+                <button key={p.id} onClick={() => { setSelectedProduto(p); setCustoUnit(p.custo_unit || 0); setPrecoVenda(p.preco_venda || 0); setFornecedor(p.fornecedor || ''); }} className="px-3 py-1.5 rounded-full text-xs font-medium bg-warning/10 text-warning hover:bg-warning/20 transition-colors">
                   {p.nome.length > 22 ? p.nome.slice(0, 22) + '…' : p.nome} ({p.qtd_atual} un.)
                 </button>
               ))}
@@ -245,7 +248,7 @@ export default function Compras() {
                 {showProdutoList && filteredProdutos.length > 0 && !selectedProduto && (
                   <div className="absolute z-10 w-full mt-1 bg-card border rounded-xl shadow-lg overflow-hidden">
                     {filteredProdutos.map(p => (
-                      <button key={p.id} className="w-full text-left px-4 py-3 hover:bg-muted text-sm border-b last:border-0 transition-colors" onClick={() => { setSelectedProduto(p); setCustoUnit(p.custo_unit || 0); setFornecedor(p.fornecedor || ''); setProdutoSearch(""); setShowProdutoList(false); }}>
+                      <button key={p.id} className="w-full text-left px-4 py-3 hover:bg-muted text-sm border-b last:border-0 transition-colors" onClick={() => { setSelectedProduto(p); setCustoUnit(p.custo_unit || 0); setPrecoVenda(p.preco_venda || 0); setFornecedor(p.fornecedor || ''); setProdutoSearch(""); setShowProdutoList(false); }}>
                         <p className="font-medium">{p.nome}</p>
                         <p className="text-xs text-muted-foreground">{p.marca} · Estoque: {p.qtd_atual ?? 0} un. · Custo: {formatCurrency(p.custo_unit || 0)}</p>
                       </button>
@@ -260,7 +263,7 @@ export default function Compras() {
                       <p className="text-sm font-semibold">{selectedProduto.nome}</p>
                       <p className="text-xs text-muted-foreground">{selectedProduto.marca} · {selectedProduto.categoria}</p>
                     </div>
-                    <button className="text-xs text-destructive underline" onClick={() => { setSelectedProduto(null); setProdutoSearch(""); setCustoUnit(0); }}>Trocar</button>
+                    <button className="text-xs text-destructive underline" onClick={() => { setSelectedProduto(null); setProdutoSearch(""); setCustoUnit(0); setPrecoVenda(0); }}>Trocar</button>
                   </div>
                   <div className="flex gap-2">
                     <span className={`text-xs ${(selectedProduto.qtd_atual || 0) < (selectedProduto.estoque_min || 0) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
@@ -343,30 +346,51 @@ export default function Compras() {
           )}
         </div>
 
-        {/* Quantidade + Custo */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Quantidade + Custo + Preço */}
+        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Quantidade *</label>
+            <label className="text-sm font-medium">Qtd *</label>
             <input type="number" min={1} className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={quantidade || ''} onChange={e => setQuantidade(parseInt(e.target.value) || 0)} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Custo unitário *</label>
+            <label className="text-sm font-medium">Custo un. *</label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
               <input type="number" step="0.01" className="w-full pl-10 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={custoUnit || ''} onChange={e => setCustoUnit(parseFloat(e.target.value) || 0)} />
             </div>
           </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Preço venda</label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
+              <input type="number" step="0.01" className="w-full pl-10 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" value={precoVenda || ''} onChange={e => setPrecoVenda(parseFloat(e.target.value) || 0)} />
+            </div>
+          </div>
         </div>
 
-        {/* Total */}
+        {/* Margin + Total card */}
         {custoUnit > 0 && quantidade >= 1 && (
-          <div className="bg-muted/50 rounded-xl px-4 py-3 text-center">
-            <p className="text-lg font-bold">Total: {formatCurrency(custoUnit * quantidade)}</p>
-            <p className="text-xs text-muted-foreground">{quantidade} un. × {formatCurrency(custoUnit)}</p>
-            {selectedProduto && selectedProduto.preco_venda > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Margem esperada: {((selectedProduto.preco_venda - custoUnit) / selectedProduto.preco_venda * 100).toFixed(1)}%
-              </p>
+          <div className={`rounded-xl px-4 py-3 space-y-2 ${precoVenda > 0 && precoVenda > custoUnit ? 'bg-success/10' : precoVenda > 0 ? 'bg-destructive/10' : 'bg-muted/50'}`}>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Total da compra</p>
+              <p className="text-lg font-bold">{formatCurrency(custoUnit * quantidade)}</p>
+            </div>
+            {precoVenda > 0 && (
+              <>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Margem por unidade</p>
+                  <p className={`text-sm font-bold ${precoVenda > custoUnit ? 'text-success' : 'text-destructive'}`}>
+                    {formatCurrency(precoVenda - custoUnit)} ({((precoVenda - custoUnit) / precoVenda * 100).toFixed(1)}%)
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Lucro bruto total</p>
+                  <p className={`text-sm font-bold ${precoVenda > custoUnit ? 'text-success' : 'text-destructive'}`}>
+                    {formatCurrency((precoVenda - custoUnit) * quantidade)}
+                  </p>
+                </div>
+              </>
             )}
           </div>
         )}

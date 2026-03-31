@@ -1,10 +1,11 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Package, Users, Bell, Settings } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Truck, Package, Users, Bell, Settings } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/venda", label: "Venda", icon: ShoppingCart, highlight: true },
+  { path: "/compras", label: "Compras", icon: Truck },
   { path: "/estoque", label: "Estoque", icon: Package },
   { path: "/clientes", label: "Clientes", icon: Users },
 ];

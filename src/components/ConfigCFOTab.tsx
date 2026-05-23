@@ -33,13 +33,21 @@ export default function ConfigCFOTab() {
   const [form, setForm] = useState<Config>(emptyConfig);
   const [dirty, setDirty] = useState(false);
 
-  const { data: rows, isLoading } = useQuery({
+  const { data: rows, isLoading, error: loadError } = useQuery({
     queryKey: ["config-financeira"],
     queryFn: async () => {
-      const { data } = await supabase.from("config_financeira").select("*");
+      const { data, error } = await supabase.from("config_financeira").select("*");
+      if (error) {
+        if (error.code === "PGRST205" || error.message?.includes("config_financeira")) {
+          return [];
+        }
+        throw error;
+      }
       return data || [];
     },
+    retry: false,
   });
+  const tabelaFaltando = !!loadError;
 
   useEffect(() => {
     if (!Array.isArray(rows)) return;
@@ -85,6 +93,37 @@ export default function ConfigCFOTab() {
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+
+  if (tabelaFaltando) {
+    return (
+      <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3">
+        <div className="flex items-start gap-2">
+          <Info size={16} className="text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-destructive">Tabela de configurações financeiras não existe ainda</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              A migration <code className="bg-muted px-1 rounded">20260523180000_cfo_canais_config.sql</code> precisa ser aplicada no Supabase para que esta tela funcione. Lovable nem sempre aplica migrations automaticamente — copie e cole o SQL no <strong>Supabase Dashboard → SQL Editor</strong>:
+            </p>
+          </div>
+        </div>
+        <pre className="bg-card border rounded-lg p-3 text-[10px] overflow-x-auto whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS public.config_financeira (
+  chave text PRIMARY KEY,
+  valor numeric NOT NULL DEFAULT 0,
+  valor_texto text,
+  updated_at timestamptz DEFAULT now()
+);
+
+INSERT INTO public.config_financeira (chave, valor, valor_texto) VALUES
+  ('pro_labore_socio1', 0, 'Você'),
+  ('pro_labore_socio2', 0, 'Sócio'),
+  ('das_mei_mensal', 80.90, 'DAS MEI Comércio 2026'),
+  ('teto_mei_anual', 81000, 'Limite anual MEI'),
+  ('reserva_caixa', 0, 'Reserva atual'),
+  ('meta_lucro_mensal', 0, 'Meta de lucro mensal')
+ON CONFLICT (chave) DO NOTHING;`}</pre>
+      </div>
+    );
+  }
 
   const proLaboreTotal = form.pro_labore_socio1 + form.pro_labore_socio2;
 

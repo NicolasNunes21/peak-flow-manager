@@ -56,6 +56,22 @@ export default function Dashboard() {
     },
   });
 
+  // Configuração financeira (pró-labore + DAS) — fallback gracioso se migration não rodou
+  const { data: configFin } = useQuery({
+    queryKey: ["config-financeira"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("config_financeira").select("*");
+      if (error) {
+        if (error.code === "PGRST205" || error.message?.includes("config_financeira")) return {};
+        throw error;
+      }
+      const map: Record<string, number> = {};
+      (data || []).forEach(c => { map[c.chave] = Number(c.valor); });
+      return map;
+    },
+    retry: false,
+  });
+
   // Para insights: produtos + vendas últimos 60 dias (para comparar mês atual vs anterior)
   const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
   const { data: produtos } = useQuery({
@@ -248,6 +264,9 @@ export default function Dashboard() {
   });
   const totalGastosMes = Object.values(gastosPorCategoria).reduce((s, v) => s + v, 0);
   const sobraReal = fatMes - custosMes - totalGastosMes;
+  const proLabore = (configFin?.['pro_labore_socio1'] || 0) + (configFin?.['pro_labore_socio2'] || 0);
+  const dasMei = configFin?.['das_mei_mensal'] || 0;
+  const resultadoLiquido = sobraReal - proLabore - dasMei;
 
   // Insights
   const insights: Insight[] = gerarInsights({
@@ -558,15 +577,37 @@ export default function Dashboard() {
                 <span className="font-medium text-destructive">−{formatCurrency(v)}</span>
               </div>
             ))}
-            <div className={`flex items-center justify-between pt-1.5 border-t ${sobraReal >= 0 ? '' : ''}`}>
-              <span className="font-semibold">= Sobra de caixa</span>
+            <div className="flex items-center justify-between pt-1.5 border-t">
+              <span className="font-medium">= EBITDA <span className="text-[10px] text-muted-foreground">(resultado operacional)</span></span>
               <span className={`font-bold ${sobraReal >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {formatCurrency(sobraReal)}
               </span>
             </div>
+            {proLabore > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">− Pró-labore (sócios)</span>
+                <span className="font-medium text-destructive">−{formatCurrency(proLabore)}</span>
+              </div>
+            )}
+            {dasMei > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">− DAS MEI</span>
+                <span className="font-medium text-destructive">−{formatCurrency(dasMei)}</span>
+              </div>
+            )}
+            <div className={`flex items-center justify-between pt-2 border-t-2 mt-1 -mx-4 px-4 py-2 ${resultadoLiquido >= 0 ? 'bg-success/5' : 'bg-destructive/5'}`}>
+              <span className="font-bold text-base">= Lucro líquido</span>
+              <span className={`font-bold text-base ${resultadoLiquido >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {formatCurrency(resultadoLiquido)}
+              </span>
+            </div>
           </div>
           <p className="text-[10px] text-muted-foreground pt-1">
-            Sobra de caixa é o que sobrou no mês. Ainda saem daí: pró-labore, impostos, reposição de estoque.
+            {proLabore === 0 ? (
+              <>Pró-labore não cadastrado — o lucro líquido fica fictício. <Link to="/configuracoes" className="text-primary underline">Configurar</Link> para ver o número real.</>
+            ) : (
+              <>Lucro líquido é o que sobra depois de tudo: pró-labore, impostos. Análise completa em <Link to="/cfo" className="text-primary underline">CFO Peak</Link>.</>
+            )}
           </p>
         </div>
       )}
@@ -968,16 +1009,41 @@ export default function Dashboard() {
                 );
               })}
 
-              <div className={`flex justify-between p-3 rounded-xl mt-2 ${sobraReal >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                <span className="text-sm font-semibold">Sobra real (caixa)</span>
+              <div className="flex justify-between p-3 border rounded-xl mt-2 bg-muted/30">
+                <span className="text-sm font-semibold">= EBITDA (resultado operacional)</span>
                 <span className={`text-sm font-bold ${sobraReal >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(sobraReal)}</span>
+              </div>
+
+              {(proLabore > 0 || dasMei > 0) && (
+                <>
+                  <div className="pt-2 pb-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saídas societárias e tributárias</p>
+                  </div>
+                  {proLabore > 0 && (
+                    <div className="flex justify-between p-3 border rounded-xl">
+                      <span className="text-sm">Pró-labore (sócios)</span>
+                      <span className="text-sm font-bold text-destructive">−{formatCurrency(proLabore)}</span>
+                    </div>
+                  )}
+                  {dasMei > 0 && (
+                    <div className="flex justify-between p-3 border rounded-xl">
+                      <span className="text-sm">DAS MEI</span>
+                      <span className="text-sm font-bold text-destructive">−{formatCurrency(dasMei)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className={`flex justify-between p-3 rounded-xl mt-2 ${resultadoLiquido >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                <span className="text-sm font-bold">= Lucro líquido</span>
+                <span className={`text-base font-bold ${resultadoLiquido >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(resultadoLiquido)}</span>
               </div>
             </div>
 
             <div className="bg-muted/30 rounded-xl p-3 space-y-1">
-              <p className="text-xs"><strong>Sobra real ≠ Lucro do MEI.</strong></p>
-              <p className="text-[11px] text-muted-foreground">Desta sobra você ainda paga pró-labore (você + sócio), impostos (DAS), reinveste em estoque, etc. Apenas o que sobrar depois disso é lucro de verdade.</p>
-              <p className="text-[11px] text-muted-foreground pt-1">Registre TODOS os gastos (marketing, ads, reformas, parcerias) em <strong>Configurações</strong> para esse número refletir a realidade.</p>
+              <p className="text-xs"><strong>EBITDA</strong> é o resultado operacional — antes de pró-labore e impostos.</p>
+              <p className="text-xs"><strong>Lucro líquido</strong> é o que você efetivamente ganhou no mês, depois de pagar todo mundo (sócios + Receita).</p>
+              <p className="text-[11px] text-muted-foreground pt-1">{proLabore === 0 ? <>Cadastre o pró-labore em <Link to="/configuracoes" className="text-primary underline">Configurações → Financeiro</Link> para o lucro líquido refletir a realidade.</> : <>Análise completa, ROAS e histórico em <Link to="/cfo" className="text-primary underline">CFO Peak</Link>.</>}</p>
             </div>
           </div>
         </SheetContent>

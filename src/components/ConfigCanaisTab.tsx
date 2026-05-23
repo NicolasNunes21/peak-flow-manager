@@ -34,13 +34,21 @@ export default function ConfigCanaisTab() {
   const [editNome, setEditNome] = useState("");
   const [editTipo, setEditTipo] = useState<typeof TIPOS[number]['key']>('parceria');
 
-  const { data: canais, isLoading } = useQuery({
+  const { data: canais, isLoading, error: loadError } = useQuery({
     queryKey: ["canais-todos"],
     queryFn: async () => {
-      const { data } = await supabase.from("canais").select("*").order("nome");
+      const { data, error } = await supabase.from("canais").select("*").order("nome");
+      if (error) {
+        if (error.code === "PGRST205" || error.message?.includes("canais")) {
+          return [] as Canal[];
+        }
+        throw error;
+      }
       return (data || []) as Canal[];
     },
+    retry: false,
   });
+  const tabelaFaltando = !!loadError;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["canais"] });
@@ -90,6 +98,41 @@ export default function ConfigCanaisTab() {
     setEditNome(c.nome);
     setEditTipo((TIPOS.find(t => t.key === c.tipo)?.key) || 'parceria');
   };
+
+  if (tabelaFaltando) {
+    return (
+      <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3">
+        <div className="flex items-start gap-2">
+          <Info size={16} className="text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-destructive">Tabela de canais não existe ainda</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Aplique a migration no <strong>Supabase Dashboard → SQL Editor</strong>:
+            </p>
+          </div>
+        </div>
+        <pre className="bg-card border rounded-lg p-3 text-[10px] overflow-x-auto whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS public.canais (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome text NOT NULL UNIQUE,
+  tipo text NOT NULL DEFAULT 'organico',
+  ativo boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+INSERT INTO public.canais (nome, tipo) VALUES
+  ('Loja física', 'loja'),
+  ('Instagram', 'organico'),
+  ('WhatsApp', 'organico'),
+  ('Indicação', 'organico'),
+  ('Anúncio Meta', 'pago'),
+  ('Anúncio Google', 'pago')
+ON CONFLICT (nome) DO NOTHING;
+
+ALTER TABLE public.custos_fixos
+  ADD COLUMN IF NOT EXISTS canal text;`}</pre>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

@@ -18,20 +18,26 @@ export default function CFOPeak() {
   const yearStart = new Date(today.getFullYear(), 0, 1);
 
   // ====== Queries ======
-  const { data: vendas6m, isLoading: loadingVendas } = useQuery({
-    queryKey: ["cfo-vendas-6m"],
-    queryFn: async () => {
-      const { data } = await supabase.from("vendas").select("*").gte("created_at", sixMonthsAgo.toISOString());
-      return data || [];
-    },
-  });
-  const { data: vendasAno } = useQuery({
+  // Vendas do ano inteiro — usadas tanto para histórico mensal quanto para teto MEI
+  // (loja iniciou em 2026, então 12 meses cobre todo o histórico relevante)
+  void sixMonthsAgo;
+  const { data: vendasAno, isLoading: loadingVendas } = useQuery({
     queryKey: ["cfo-vendas-ano"],
     queryFn: async () => {
       const { data } = await supabase.from("vendas").select("*").gte("created_at", yearStart.toISOString());
       return data || [];
     },
   });
+  // Primeira venda registrada — define quando a loja começou
+  const { data: primeiraVenda } = useQuery({
+    queryKey: ["cfo-primeira-venda"],
+    queryFn: async () => {
+      const { data } = await supabase.from("vendas").select("created_at").order("created_at", { ascending: true }).limit(1);
+      return data?.[0]?.created_at ? new Date(data[0].created_at) : null;
+    },
+  });
+  // Alias para compatibilidade com código abaixo
+  const vendas6m = vendasAno;
   const { data: gastos } = useQuery({
     queryKey: ["cfo-gastos"],
     queryFn: async () => {
@@ -46,22 +52,38 @@ export default function CFOPeak() {
       return data || [];
     },
   });
-  const { data: canais } = useQuery({
+  // Queries com tratamento gracioso de tabela faltando (migration não aplicada)
+  const { data: canais, error: canaisError } = useQuery({
     queryKey: ["canais"],
     queryFn: async () => {
-      const { data } = await supabase.from("canais").select("*").eq("ativo", true);
+      const { data, error } = await supabase.from("canais").select("*").eq("ativo", true);
+      if (error) {
+        if (error.message?.includes("config_financeira") || error.message?.includes("canais") || error.code === "PGRST205") {
+          return [];
+        }
+        throw error;
+      }
       return data || [];
     },
+    retry: false,
   });
-  const { data: config } = useQuery({
+  const { data: config, error: configError } = useQuery({
     queryKey: ["config-financeira"],
     queryFn: async () => {
-      const { data } = await supabase.from("config_financeira").select("*");
+      const { data, error } = await supabase.from("config_financeira").select("*");
+      if (error) {
+        if (error.message?.includes("config_financeira") || error.code === "PGRST205") {
+          return {} as Record<string, { valor: number; texto: string | null }>;
+        }
+        throw error;
+      }
       const map: Record<string, { valor: number; texto: string | null }> = {};
       (data || []).forEach(c => { map[c.chave] = { valor: Number(c.valor), texto: c.valor_texto }; });
       return map;
     },
+    retry: false,
   });
+  const migrationPendente = !!(canaisError || configError);
 
   // ====== Derivados ======
   const cfg: ConfigFinanceira = useMemo(() => ({
@@ -100,9 +122,9 @@ export default function CFOPeak() {
   const historico = useMemo(() => historicoMensal({
     vendas: (vendas6m || []) as any,
     gastos: (gastos || []) as any,
-    meses: 6,
+    desdeInicio: primeiraVenda,
     hoje: today,
-  }), [vendas6m, gastos, today]);
+  }), [vendas6m, gastos, today, primeiraVenda]);
 
   const tendenciaReceita = useMemo(() => tendencia(historico.map(h => h.receita)), [historico]);
   const tendenciaEbitda = useMemo(() => tendencia(historico.map(h => h.ebitda)), [historico]);
@@ -238,8 +260,19 @@ export default function CFOPeak() {
         </Link>
       </div>
 
+      {/* Migration pendente */}
+      {migrationPendente && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 flex items-start gap-2">
+          <AlertTriangle size={16} className="text-destructive shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <p className="font-semibold text-destructive">Tabelas do CFO Peak não foram criadas no Supabase</p>
+            <p className="text-muted-foreground">O recurso está rodando em modo limitado. Aplique a migration <code className="bg-muted px-1 rounded">20260523180000_cfo_canais_config.sql</code> no Supabase SQL Editor para habilitar pró-labore, reserva e canais.</p>
+          </div>
+        </div>
+      )}
+
       {/* Avisos de configuração faltando */}
-      {(cfg.pro_labore_socio1 === 0 && cfg.pro_labore_socio2 === 0) && (
+      {!migrationPendente && (cfg.pro_labore_socio1 === 0 && cfg.pro_labore_socio2 === 0) && (
         <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
           <Info size={16} className="text-warning shrink-0 mt-0.5" />
           <div className="text-xs">

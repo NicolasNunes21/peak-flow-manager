@@ -72,9 +72,14 @@ export default function Configuracoes() {
   const { data: canaisAtivos } = useQuery({
     queryKey: ["canais"],
     queryFn: async () => {
-      const { data } = await supabase.from("canais").select("nome,tipo").eq("ativo", true).order("nome");
+      const { data, error } = await supabase.from("canais").select("nome,tipo").eq("ativo", true).order("nome");
+      if (error) {
+        if (error.code === "PGRST205" || error.message?.includes("canais")) return [];
+        throw error;
+      }
       return data || [];
     },
+    retry: false,
   });
 
   const totalFixoMensal = useMemo(

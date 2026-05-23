@@ -9,6 +9,7 @@ import Estoque from "@/pages/Estoque";
 import Clientes from "@/pages/Clientes";
 import Compras from "@/pages/Compras";
 import Configuracoes from "@/pages/Configuracoes";
+import CFOPeak from "@/pages/CFOPeak";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/estoque" element={<Estoque />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
+            <Route path="/cfo" element={<CFOPeak />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

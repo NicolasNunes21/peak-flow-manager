@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Loader2, Briefcase, Receipt, Radio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ConfigCFOTab from "@/components/ConfigCFOTab";
+import ConfigCanaisTab from "@/components/ConfigCanaisTab";
 
 const CATEGORIAS = ['Custo Fixo', 'Marketing', 'Anúncios', 'Investimento', 'Parceria', 'Outros'] as const;
 type Categoria = typeof CATEGORIAS[number];
@@ -34,6 +36,7 @@ type Gasto = {
   recorrencia: string;
   data: string | null;
   descricao: string | null;
+  canal: string | null;
 };
 
 const emptyForm = {
@@ -43,11 +46,16 @@ const emptyForm = {
   recorrencia: 'mensal' as 'mensal' | 'unica',
   data: '',
   descricao: '',
+  canal: '',
 };
+
+// Categorias onde faz sentido vincular a um canal (para ROAS)
+const CATEGORIAS_COM_CANAL: Categoria[] = ['Marketing', 'Anúncios', 'Parceria'];
 
 export default function Configuracoes() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [topTab, setTopTab] = useState<'gastos' | 'cfo' | 'canais'>('gastos');
   const [tab, setTab] = useState<'todos' | Categoria>('todos');
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,6 +66,14 @@ export default function Configuracoes() {
     queryFn: async () => {
       const { data } = await supabase.from("custos_fixos").select("*").order("nome");
       return (data || []) as Gasto[];
+    },
+  });
+
+  const { data: canaisAtivos } = useQuery({
+    queryKey: ["canais"],
+    queryFn: async () => {
+      const { data } = await supabase.from("canais").select("nome,tipo").eq("ativo", true).order("nome");
+      return data || [];
     },
   });
 
@@ -100,6 +116,7 @@ export default function Configuracoes() {
         recorrencia: form.recorrencia,
         data: form.recorrencia === 'unica' ? (form.data || new Date().toISOString().split('T')[0]) : null,
         descricao: form.descricao.trim() || null,
+        canal: CATEGORIAS_COM_CANAL.includes(form.categoria) && form.canal ? form.canal : null,
       };
       const { error } = await supabase.from("custos_fixos").insert(payload);
       if (error) throw error;
@@ -123,6 +140,7 @@ export default function Configuracoes() {
         recorrencia: editForm.recorrencia,
         data: editForm.recorrencia === 'unica' ? (editForm.data || null) : null,
         descricao: editForm.descricao.trim() || null,
+        canal: CATEGORIAS_COM_CANAL.includes(editForm.categoria) && editForm.canal ? editForm.canal : null,
       };
       const { error } = await supabase.from("custos_fixos").update(payload).eq("id", id);
       if (error) throw error;
@@ -157,14 +175,46 @@ export default function Configuracoes() {
       recorrencia: (g.recorrencia === 'mensal' ? 'mensal' : 'unica'),
       data: g.data || '',
       descricao: g.descricao || '',
+      canal: g.canal || '',
     });
   };
 
   return (
     <div className="animate-fade-in space-y-5 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold text-secondary">Gastos & Custos</h1>
-        <p className="text-sm text-muted-foreground">Tudo o que sai do caixa: custos fixos, marketing, anúncios, investimentos, parcerias.</p>
+        <h1 className="text-xl font-bold text-secondary">Configurações</h1>
+        <p className="text-sm text-muted-foreground">Gerencie gastos, dados financeiros (CFO Peak) e canais de venda.</p>
+      </div>
+
+      {/* Top Tabs */}
+      <div className="flex gap-1 bg-muted/50 rounded-xl p-1 sticky top-0 z-10">
+        <button
+          onClick={() => setTopTab('gastos')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-colors ${topTab === 'gastos' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Receipt size={14} /> Gastos
+        </button>
+        <button
+          onClick={() => setTopTab('cfo')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-colors ${topTab === 'cfo' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Briefcase size={14} /> Financeiro (CFO)
+        </button>
+        <button
+          onClick={() => setTopTab('canais')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-colors ${topTab === 'canais' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Radio size={14} /> Canais
+        </button>
+      </div>
+
+      {topTab === 'cfo' && <ConfigCFOTab />}
+      {topTab === 'canais' && <ConfigCanaisTab />}
+
+      {topTab === 'gastos' && <>
+      <div>
+        <h2 className="text-base font-bold text-secondary">Gastos & Custos</h2>
+        <p className="text-xs text-muted-foreground">Tudo o que sai do caixa: custos fixos, marketing, anúncios, investimentos, parcerias.</p>
       </div>
 
       {/* Totais */}
@@ -224,6 +274,18 @@ export default function Configuracoes() {
               value={form.data}
               onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
             />
+          )}
+          {CATEGORIAS_COM_CANAL.includes(form.categoria) && (
+            <select
+              className="px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary md:col-span-2"
+              value={form.canal}
+              onChange={e => setForm(f => ({ ...f, canal: e.target.value }))}
+            >
+              <option value="">Vincular a canal (opcional — pra ROAS)</option>
+              {(canaisAtivos || []).map(c => (
+                <option key={c.nome} value={c.nome}>{c.nome} ({c.tipo})</option>
+              ))}
+            </select>
           )}
           <input
             className="px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary md:col-span-2"
@@ -315,6 +377,18 @@ export default function Configuracoes() {
                           onChange={e => setEditForm(f => ({ ...f, data: e.target.value }))}
                         />
                       )}
+                      {CATEGORIAS_COM_CANAL.includes(editForm.categoria) && (
+                        <select
+                          className="px-2 py-1.5 rounded border bg-background text-sm md:col-span-2"
+                          value={editForm.canal}
+                          onChange={e => setEditForm(f => ({ ...f, canal: e.target.value }))}
+                        >
+                          <option value="">Sem canal vinculado</option>
+                          {(canaisAtivos || []).map(c => (
+                            <option key={c.nome} value={c.nome}>{c.nome}</option>
+                          ))}
+                        </select>
+                      )}
                       <input
                         className="px-2 py-1.5 rounded border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary md:col-span-2"
                         placeholder="Descrição (opcional)"
@@ -360,6 +434,7 @@ export default function Configuracoes() {
           <p className="pt-2">Use <strong>Marketing/Anúncios/Investimento/Parceria</strong> para registrar gastos pontuais. Eles aparecem no Dashboard, na "Quebra do Mês", mostrando exatamente pra onde foi seu dinheiro.</p>
         </div>
       </div>
+      </>}
     </div>
   );
 }

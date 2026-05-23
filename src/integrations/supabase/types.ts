@@ -14,98 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      compras: {
-        Row: {
-          id: string
-          produto_id: string | null
-          produto_nome: string | null
-          fornecedor_nome: string | null
-          quantidade: number
-          custo_unit: number
-          custo_total: number | null
-          observacao: string | null
-          data_compra: string
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          produto_id?: string | null
-          produto_nome?: string | null
-          fornecedor_nome?: string | null
-          quantidade?: number
-          custo_unit?: number
-          custo_total?: never
-          observacao?: string | null
-          data_compra?: string
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          produto_id?: string | null
-          produto_nome?: string | null
-          fornecedor_nome?: string | null
-          quantidade?: number
-          custo_unit?: number
-          custo_total?: never
-          observacao?: string | null
-          data_compra?: string
-          created_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compras_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      canais: {
-        Row: {
-          ativo: boolean
-          created_at: string | null
-          id: string
-          nome: string
-          tipo: string
-        }
-        Insert: {
-          ativo?: boolean
-          created_at?: string | null
-          id?: string
-          nome: string
-          tipo?: string
-        }
-        Update: {
-          ativo?: boolean
-          created_at?: string | null
-          id?: string
-          nome?: string
-          tipo?: string
-        }
-        Relationships: []
-      }
-      config_financeira: {
-        Row: {
-          chave: string
-          updated_at: string | null
-          valor: number
-          valor_texto: string | null
-        }
-        Insert: {
-          chave: string
-          updated_at?: string | null
-          valor?: number
-          valor_texto?: string | null
-        }
-        Update: {
-          chave?: string
-          updated_at?: string | null
-          valor?: number
-          valor_texto?: string | null
-        }
-        Relationships: []
-      }
       categorias: {
         Row: {
           created_at: string | null
@@ -172,21 +80,105 @@ export type Database = {
         }
         Relationships: []
       }
-      fornecedores: {
+      compras: {
         Row: {
-          id: string
-          nome: string
           created_at: string | null
+          custo_total: number | null
+          custo_unit: number
+          data_compra: string | null
+          fornecedor_nome: string | null
+          id: string
+          observacao: string | null
+          produto_id: string | null
+          produto_nome: string | null
+          quantidade: number
         }
         Insert: {
-          id?: string
-          nome: string
           created_at?: string | null
+          custo_total?: number | null
+          custo_unit: number
+          data_compra?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
         }
         Update: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unit?: number
+          data_compra?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+        }
+        Relationships: []
+      }
+      fornecedores: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string | null
           id?: string
           nome?: string
+        }
+        Relationships: []
+      }
+      canais: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
           created_at?: string | null
+          id?: string
+          nome: string
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      config_financeira: {
+        Row: {
+          chave: string
+          updated_at: string | null
+          valor: number
+          valor_texto: string | null
+        }
+        Insert: {
+          chave: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Update: {
+          chave?: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
         }
         Relationships: []
       }

@@ -6,6 +6,7 @@ import { Plus, Trash2, Pencil, Check, X, Loader2, Briefcase, Receipt, Radio } fr
 import { useToast } from "@/hooks/use-toast";
 import ConfigCFOTab from "@/components/ConfigCFOTab";
 import ConfigCanaisTab from "@/components/ConfigCanaisTab";
+import { useCanais } from "@/lib/canaisStore";
 
 const CATEGORIAS = ['Custo Fixo', 'Marketing', 'Anúncios', 'Investimento', 'Parceria', 'Outros'] as const;
 type Categoria = typeof CATEGORIAS[number];
@@ -69,18 +70,8 @@ export default function Configuracoes() {
     },
   });
 
-  const { data: canaisAtivos } = useQuery({
-    queryKey: ["canais"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("canais").select("nome,tipo").eq("ativo", true).order("nome");
-      if (error) {
-        if (error.code === "PGRST205" || error.message?.includes("canais")) return [];
-        throw error;
-      }
-      return data || [];
-    },
-    retry: false,
-  });
+  const { data: canaisResult } = useCanais(true);
+  const canaisAtivos = canaisResult?.canais || [];
 
   const totalFixoMensal = useMemo(
     () => (gastos || []).filter(g => g.recorrencia === 'mensal').reduce((s, g) => s + Number(g.valor), 0),

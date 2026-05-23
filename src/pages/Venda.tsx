@@ -5,6 +5,7 @@ import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgCla
 import { Search, Minus, Plus, Loader2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
+import { useCanais, useCriarCanal } from "@/lib/canaisStore";
 
 const FORMAS_PGTO = ["PIX", "Dinheiro", "Crédito", "Débito"];
 
@@ -44,26 +45,8 @@ export default function Venda() {
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
   });
 
-  const { data: canais } = useQuery({
-    queryKey: ["canais"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("canais").select("*").eq("ativo", true).order("nome");
-      if (error) {
-        // Tabela ainda não foi criada — fallback com canais básicos
-        if (error.code === "PGRST205" || error.message?.includes("canais")) {
-          return [
-            { id: 'fallback-loja', nome: 'Loja física', tipo: 'loja', ativo: true, created_at: null },
-            { id: 'fallback-instagram', nome: 'Instagram', tipo: 'organico', ativo: true, created_at: null },
-            { id: 'fallback-indica', nome: 'Indicação', tipo: 'organico', ativo: true, created_at: null },
-          ];
-        }
-        throw error;
-      }
-      return data || [];
-    },
-    retry: false,
-  });
-  const canaisAtivos = useMemo(() => canais || [], [canais]);
+  const { data: canaisResult } = useCanais(true);
+  const canaisAtivos = useMemo(() => canaisResult?.canais || [], [canaisResult]);
 
   // Pré-selecionar canal default (Loja física se houver, senão o primeiro)
   useEffect(() => {
@@ -73,27 +56,26 @@ export default function Venda() {
     }
   }, [canaisAtivos, canal]);
 
-  const addCanalMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase
-        .from("canais")
-        .insert({ nome: novoCanalNome.trim(), tipo: novoCanalTipo })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["canais"] });
-      setCanal(data.nome);
-      setNovoCanalNome("");
-      setShowAddCanal(false);
-      toast({ title: "✅ Canal adicionado" });
-    },
-    onError: (err: any) => {
-      toast({ title: "Erro ao adicionar canal", description: err?.message, variant: "destructive" as const });
-    },
-  });
+  const criarCanalMutation = useCriarCanal();
+  const handleCriarCanal = () => {
+    criarCanalMutation.mutate(
+      { nome: novoCanalNome.trim(), tipo: novoCanalTipo },
+      {
+        onSuccess: (res) => {
+          setCanal(res.canal.nome);
+          setNovoCanalNome("");
+          setShowAddCanal(false);
+          toast({
+            title: "✅ Canal adicionado",
+            description: res.origem === 'local' ? 'Salvo neste navegador.' : undefined,
+          });
+        },
+        onError: (err: any) => {
+          toast({ title: "Erro ao adicionar canal", description: err?.message, variant: "destructive" as const });
+        },
+      }
+    );
+  };
 
   const { data: produtos } = useQuery({
     queryKey: ["produtos"],
@@ -410,11 +392,11 @@ export default function Venda() {
               </select>
               <div className="flex gap-2">
                 <button
-                  disabled={!novoCanalNome.trim() || addCanalMutation.isPending}
-                  onClick={() => addCanalMutation.mutate()}
+                  disabled={!novoCanalNome.trim() || criarCanalMutation.isPending}
+                  onClick={handleCriarCanal}
                   className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1"
                 >
-                  {addCanalMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Salvar
+                  {criarCanalMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Salvar
                 </button>
                 <button
                   onClick={() => { setShowAddCanal(false); setNovoCanalNome(""); }}

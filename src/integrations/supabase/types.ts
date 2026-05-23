@@ -80,23 +80,137 @@ export type Database = {
         }
         Relationships: []
       }
-      custos_fixos: {
+      compras: {
         Row: {
           created_at: string | null
+          custo_total: number | null
+          custo_unit: number
+          data_compra: string | null
+          fornecedor_nome: string | null
+          id: string
+          observacao: string | null
+          produto_id: string | null
+          produto_nome: string | null
+          quantidade: number
+        }
+        Insert: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unit: number
+          data_compra?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+        }
+        Update: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unit?: number
+          data_compra?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+        }
+        Relationships: []
+      }
+      fornecedores: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      canais: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome: string
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      config_financeira: {
+        Row: {
+          chave: string
+          updated_at: string | null
+          valor: number
+          valor_texto: string | null
+        }
+        Insert: {
+          chave: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Update: {
+          chave?: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Relationships: []
+      }
+      custos_fixos: {
+        Row: {
+          canal: string | null
+          categoria: string
+          created_at: string | null
+          data: string | null
+          descricao: string | null
           id: string
           nome: string
           recorrencia: string
           valor: number
         }
         Insert: {
+          canal?: string | null
+          categoria?: string
           created_at?: string | null
+          data?: string | null
+          descricao?: string | null
           id?: string
           nome: string
           recorrencia?: string
           valor?: number
         }
         Update: {
+          canal?: string | null
+          categoria?: string
           created_at?: string | null
+          data?: string | null
+          descricao?: string | null
           id?: string
           nome?: string
           recorrencia?: string

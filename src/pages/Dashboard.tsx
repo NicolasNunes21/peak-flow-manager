@@ -8,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { gerarInsights, type Insight } from "@/lib/insights";
+import { useConfigFinanceira } from "@/lib/configFinanceira";
 
 export default function Dashboard() {
   const today = new Date();
@@ -56,21 +57,9 @@ export default function Dashboard() {
     },
   });
 
-  // Configuração financeira (pró-labore + DAS) — fallback gracioso se migration não rodou
-  const { data: configFin } = useQuery({
-    queryKey: ["config-financeira"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("config_financeira").select("*");
-      if (error) {
-        if (error.code === "PGRST205" || error.message?.includes("config_financeira")) return {};
-        throw error;
-      }
-      const map: Record<string, number> = {};
-      (data || []).forEach(c => { map[c.chave] = Number(c.valor); });
-      return map;
-    },
-    retry: false,
-  });
+  // Configuração financeira (pró-labore + DAS) — usa hook unificado com fallback localStorage
+  const { data: configFinResult } = useConfigFinanceira();
+  const configFin = configFinResult?.config;
 
   // Para insights: produtos + vendas últimos 60 dias (para comparar mês atual vs anterior)
   const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
@@ -264,8 +253,8 @@ export default function Dashboard() {
   });
   const totalGastosMes = Object.values(gastosPorCategoria).reduce((s, v) => s + v, 0);
   const sobraReal = fatMes - custosMes - totalGastosMes;
-  const proLabore = (configFin?.['pro_labore_socio1'] || 0) + (configFin?.['pro_labore_socio2'] || 0);
-  const dasMei = configFin?.['das_mei_mensal'] || 0;
+  const proLabore = (configFin?.pro_labore_socio1 || 0) + (configFin?.pro_labore_socio2 || 0);
+  const dasMei = configFin?.das_mei_mensal ?? 80.90; // default DAS comércio 2026, mesmo sem tabela
   const resultadoLiquido = sobraReal - proLabore - dasMei;
 
   // Insights

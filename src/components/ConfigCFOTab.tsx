@@ -1,136 +1,53 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/format";
-import { Loader2, Save, Info, Briefcase, Shield, Building2, Target } from "lucide-react";
+import { Loader2, Save, Info, Briefcase, Shield, Building2, Target, HardDrive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-type Config = {
-  pro_labore_socio1: number;
-  pro_labore_socio2: number;
-  das_mei_mensal: number;
-  teto_mei_anual: number;
-  reserva_caixa: number;
-  meta_lucro_mensal: number;
-  nome_socio1: string;
-  nome_socio2: string;
-};
-
-const emptyConfig: Config = {
-  pro_labore_socio1: 0,
-  pro_labore_socio2: 0,
-  das_mei_mensal: 80.90,
-  teto_mei_anual: 81000,
-  reserva_caixa: 0,
-  meta_lucro_mensal: 0,
-  nome_socio1: 'Você',
-  nome_socio2: 'Sócio',
-};
+import { useConfigFinanceira, useSalvarConfigFinanceira, CONFIG_DEFAULT, type ConfigFinanceira } from "@/lib/configFinanceira";
 
 export default function ConfigCFOTab() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState<Config>(emptyConfig);
+  const [form, setForm] = useState<ConfigFinanceira>(CONFIG_DEFAULT);
   const [dirty, setDirty] = useState(false);
 
-  const { data: rows, isLoading, error: loadError } = useQuery({
-    queryKey: ["config-financeira"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("config_financeira").select("*");
-      if (error) {
-        if (error.code === "PGRST205" || error.message?.includes("config_financeira")) {
-          return [];
-        }
-        throw error;
-      }
-      return data || [];
-    },
-    retry: false,
-  });
-  const tabelaFaltando = !!loadError;
+  const { data: result, isLoading } = useConfigFinanceira();
+  const salvar = useSalvarConfigFinanceira();
 
   useEffect(() => {
-    if (!Array.isArray(rows)) return;
-    const map: Record<string, { valor: number; texto: string | null }> = {};
-    rows.forEach((r: any) => { map[r.chave] = { valor: Number(r.valor), texto: r.valor_texto }; });
-    setForm({
-      pro_labore_socio1: map['pro_labore_socio1']?.valor ?? 0,
-      pro_labore_socio2: map['pro_labore_socio2']?.valor ?? 0,
-      das_mei_mensal: map['das_mei_mensal']?.valor ?? 80.90,
-      teto_mei_anual: map['teto_mei_anual']?.valor ?? 81000,
-      reserva_caixa: map['reserva_caixa']?.valor ?? 0,
-      meta_lucro_mensal: map['meta_lucro_mensal']?.valor ?? 0,
-      nome_socio1: map['pro_labore_socio1']?.texto || 'Você',
-      nome_socio2: map['pro_labore_socio2']?.texto || 'Sócio',
-    });
-  }, [rows]);
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const updates = [
-        { chave: 'pro_labore_socio1', valor: form.pro_labore_socio1, valor_texto: form.nome_socio1 },
-        { chave: 'pro_labore_socio2', valor: form.pro_labore_socio2, valor_texto: form.nome_socio2 },
-        { chave: 'das_mei_mensal', valor: form.das_mei_mensal, valor_texto: 'DAS MEI mensal' },
-        { chave: 'teto_mei_anual', valor: form.teto_mei_anual, valor_texto: 'Limite anual MEI' },
-        { chave: 'reserva_caixa', valor: form.reserva_caixa, valor_texto: 'Reserva atual' },
-        { chave: 'meta_lucro_mensal', valor: form.meta_lucro_mensal, valor_texto: 'Meta de lucro' },
-      ];
-      for (const u of updates) {
-        const { error } = await supabase
-          .from("config_financeira")
-          .upsert({ ...u, updated_at: new Date().toISOString() }, { onConflict: 'chave' });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      toast({ title: "✅ Configurações salvas" });
+    if (result?.config) {
+      setForm(result.config);
       setDirty(false);
-      queryClient.invalidateQueries({ queryKey: ["config-financeira"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "Erro ao salvar", description: err?.message, variant: "destructive" as const });
-    },
-  });
+    }
+  }, [result?.config]);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+  const handleSalvar = () => {
+    salvar.mutate(form, {
+      onSuccess: (res) => {
+        if (res.origem === 'local') {
+          toast({
+            title: "⚠️ Salvo localmente",
+            description: "A tabela no Supabase não existe ainda. Os dados sincronizam automaticamente quando a tabela for criada.",
+          });
+        } else {
+          toast({ title: "✅ Configurações salvas" });
+        }
+        setDirty(false);
+      },
+      onError: (err: any) => {
+        toast({ title: "Erro ao salvar", description: err?.message, variant: "destructive" as const });
+      },
+    });
+  };
 
-  if (tabelaFaltando) {
-    return (
-      <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3">
-        <div className="flex items-start gap-2">
-          <Info size={16} className="text-destructive shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-destructive">Tabela de configurações financeiras não existe ainda</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              A migration <code className="bg-muted px-1 rounded">20260523180000_cfo_canais_config.sql</code> precisa ser aplicada no Supabase para que esta tela funcione. Lovable nem sempre aplica migrations automaticamente — copie e cole o SQL no <strong>Supabase Dashboard → SQL Editor</strong>:
-            </p>
-          </div>
-        </div>
-        <pre className="bg-card border rounded-lg p-3 text-[10px] overflow-x-auto whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS public.config_financeira (
-  chave text PRIMARY KEY,
-  valor numeric NOT NULL DEFAULT 0,
-  valor_texto text,
-  updated_at timestamptz DEFAULT now()
-);
-
-INSERT INTO public.config_financeira (chave, valor, valor_texto) VALUES
-  ('pro_labore_socio1', 0, 'Você'),
-  ('pro_labore_socio2', 0, 'Sócio'),
-  ('das_mei_mensal', 80.90, 'DAS MEI Comércio 2026'),
-  ('teto_mei_anual', 81000, 'Limite anual MEI'),
-  ('reserva_caixa', 0, 'Reserva atual'),
-  ('meta_lucro_mensal', 0, 'Meta de lucro mensal')
-ON CONFLICT (chave) DO NOTHING;`}</pre>
-      </div>
-    );
-  }
-
-  const proLaboreTotal = form.pro_labore_socio1 + form.pro_labore_socio2;
-
-  const update = <K extends keyof Config>(key: K, value: Config[K]) => {
+  const update = <K extends keyof ConfigFinanceira>(key: K, value: ConfigFinanceira[K]) => {
     setForm(f => ({ ...f, [key]: value }));
     setDirty(true);
   };
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+
+  const proLaboreTotal = form.pro_labore_socio1 + form.pro_labore_socio2;
+  const usandoLocalStorage = result?.origem === 'local';
+  const acabouMigrar = result?.migrado;
 
   return (
     <div className="space-y-5">
@@ -138,6 +55,26 @@ ON CONFLICT (chave) DO NOTHING;`}</pre>
         <h2 className="text-base font-bold text-secondary">Configurações CFO</h2>
         <p className="text-xs text-muted-foreground">Esses valores alimentam o DRE, lucro líquido e recomendações do CFO Peak.</p>
       </div>
+
+      {usandoLocalStorage && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
+          <HardDrive size={16} className="text-warning shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <p className="font-semibold text-warning">Modo offline — salvando neste navegador</p>
+            <p className="text-muted-foreground">A tabela <code className="bg-muted px-1 rounded">config_financeira</code> ainda não existe no Supabase. Tudo continua funcionando, mas os dados ficam só neste navegador (não sincronizam entre dispositivos) até a tabela ser criada. Quando ela existir, vou migrar automaticamente.</p>
+          </div>
+        </div>
+      )}
+
+      {acabouMigrar && (
+        <div className="bg-success/10 border border-success/30 rounded-xl p-3 flex items-start gap-2">
+          <Save size={16} className="text-success shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <p className="font-semibold text-success">Sincronizado!</p>
+            <p className="text-muted-foreground">Detectei que a tabela passou a existir no Supabase. Migrei seus dados locais para lá. Agora sincroniza entre dispositivos.</p>
+          </div>
+        </div>
+      )}
 
       {/* Pró-labore */}
       <Section icon={Briefcase} title="Pró-labore mensal" hint="Quanto cada sócio tira do caixa por mês. Sem isso, lucro líquido fica fictício.">
@@ -197,11 +134,11 @@ ON CONFLICT (chave) DO NOTHING;`}</pre>
       {/* Save */}
       <div className="sticky bottom-0 bg-background pt-3 pb-2 border-t mt-4">
         <button
-          disabled={!dirty || saveMutation.isPending}
-          onClick={() => saveMutation.mutate()}
+          disabled={!dirty || salvar.isPending}
+          onClick={handleSalvar}
           className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
         >
-          {saveMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          {salvar.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           {dirty ? 'Salvar alterações' : 'Sem alterações'}
         </button>
       </div>

@@ -325,10 +325,12 @@ export default function CFOPeak() {
         </div>
       </div>
 
-      {/* Histórico 6 meses */}
+      {/* Histórico mensal */}
       <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-secondary">Histórico — últimos 6 meses</h2>
+          <h2 className="text-sm font-semibold text-secondary">
+            Histórico — {historico.length === 1 ? 'mês atual' : `últimos ${historico.length} meses`}
+          </h2>
           <div className="flex items-center gap-3 text-[11px]">
             <div className="flex items-center gap-1">Receita {tendIcon(tendenciaReceita)}</div>
             <div className="flex items-center gap-1">EBITDA {tendIcon(tendenciaEbitda)}</div>

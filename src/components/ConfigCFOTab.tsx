@@ -42,9 +42,9 @@ export default function ConfigCFOTab() {
   });
 
   useEffect(() => {
-    if (!rows) return;
+    if (!Array.isArray(rows)) return;
     const map: Record<string, { valor: number; texto: string | null }> = {};
-    rows.forEach(r => { map[r.chave] = { valor: Number(r.valor), texto: r.valor_texto }; });
+    rows.forEach((r: any) => { map[r.chave] = { valor: Number(r.valor), texto: r.valor_texto }; });
     setForm({
       pro_labore_socio1: map['pro_labore_socio1']?.valor ?? 0,
       pro_labore_socio2: map['pro_labore_socio2']?.valor ?? 0,

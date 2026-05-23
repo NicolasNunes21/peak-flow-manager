@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
-import { Search, Minus, Plus, Loader2, Package } from "lucide-react";
+import { Search, Minus, Plus, Loader2, Package, ShoppingCart } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
 import { useCanais, useCriarCanal } from "@/lib/canaisStore";
@@ -239,19 +240,12 @@ export default function Venda() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Today's summary bar */}
-      <div className="bg-card rounded-xl p-4 shadow-sm">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h1 className="text-xl font-bold text-secondary">Registrar Venda</h1>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-bold text-primary">{formatCurrency(totalHoje)}</span>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">{(vendasHoje || []).length} vendas</span>
-            <span className="text-muted-foreground">·</span>
-            <span className={`font-medium ${margemColorClass(margemPctHoje)}`}>Margem {formatPercent(margemPctHoje)}</span>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Registrar Venda"
+        subtitle={`Hoje: ${formatCurrency(totalHoje)} · ${(vendasHoje || []).length} vendas · Margem ${formatPercent(margemPctHoje)}`}
+        icon={<ShoppingCart size={20} strokeWidth={2.5} />}
+        iconGradient
+      />
 
       {/* Form only — no sidebar */}
       <div className="space-y-5 max-w-lg mx-auto">

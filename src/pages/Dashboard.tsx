@@ -292,76 +292,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Insights inteligentes — colapsável + expansível */}
-      {hasData && (() => {
-        const alertasCount = insights.filter(i => i.tipo === 'alerta' || i.tipo === 'oportunidade').length;
-        const visibleCount = insightsExpanded ? insights.length : 3;
-        const visible = insights.slice(0, visibleCount);
-        const hidden = insights.length - visible.length;
-        return (
-          <div className="bg-card rounded-2xl card-elev overflow-hidden">
-            <button
-              onClick={() => setInsightsMinimized(m => !m)}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-warning/15 flex items-center justify-center">
-                  <Lightbulb size={14} className="text-warning" />
-                </div>
-                <h3 className="text-sm font-semibold tracking-tight">Insights</h3>
-                {alertasCount > 0 && !insightsMinimized && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground font-bold">{alertasCount}</span>
-                )}
-                {insightsMinimized && (
-                  <span className="text-xs text-muted-foreground">
-                    {alertasCount > 0 ? `${alertasCount} alerta${alertasCount > 1 ? 's' : ''}` : 'tudo ok'}
-                  </span>
-                )}
-              </div>
-              {insightsMinimized ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronUp size={16} className="text-muted-foreground" />}
-            </button>
-            {!insightsMinimized && (
-              <div className="p-3 pt-0 space-y-2">
-                {visible.map((ins, i) => {
-                  const Icon = ins.tipo === 'alerta' ? AlertTriangle
-                    : ins.tipo === 'oportunidade' ? TrendingDown
-                    : ins.tipo === 'positivo' ? Sparkles
-                    : Info;
-                  const bg = ins.tipo === 'alerta' ? 'bg-destructive/5 border-destructive/20'
-                    : ins.tipo === 'oportunidade' ? 'bg-warning/5 border-warning/20'
-                    : ins.tipo === 'positivo' ? 'bg-success/5 border-success/20'
-                    : 'bg-muted/30 border-muted';
-                  const iconColor = ins.tipo === 'alerta' ? 'text-destructive'
-                    : ins.tipo === 'oportunidade' ? 'text-warning'
-                    : ins.tipo === 'positivo' ? 'text-success'
-                    : 'text-muted-foreground';
-                  return (
-                    <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border ${bg}`}>
-                      <Icon size={14} className={`shrink-0 mt-0.5 ${iconColor}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold">{ins.titulo}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{ins.descricao}</p>
-                        {ins.acao && <p className="text-[11px] mt-1 font-medium text-secondary">→ {ins.acao}</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-                {hidden > 0 && (
-                  <button onClick={() => setInsightsExpanded(true)} className="w-full py-2 text-xs font-medium text-primary hover:underline">
-                    Ver todos os {insights.length} insights ({hidden} oculto{hidden > 1 ? 's' : ''})
-                  </button>
-                )}
-                {insightsExpanded && insights.length > 3 && (
-                  <button onClick={() => setInsightsExpanded(false)} className="w-full py-2 text-xs font-medium text-muted-foreground hover:underline">
-                    Recolher
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button onClick={() => setOpenSheet('hoje')} className="relative overflow-hidden rounded-2xl p-4 space-y-2 text-left pressable bg-gradient-to-br from-primary to-[hsl(192_85%_32%)] text-primary-foreground shadow-[0_8px_24px_-8px_hsl(192_83%_38%/0.4)]">
@@ -487,6 +417,76 @@ export default function Dashboard() {
         )}
       </div>
 
+
+      {/* Insights inteligentes — colapsável + expansível */}
+      {hasData && (() => {
+        const alertasCount = insights.filter(i => i.tipo === 'alerta' || i.tipo === 'oportunidade').length;
+        const visibleCount = insightsExpanded ? insights.length : 3;
+        const visible = insights.slice(0, visibleCount);
+        const hidden = insights.length - visible.length;
+        return (
+          <div className="bg-card rounded-2xl card-elev overflow-hidden">
+            <button
+              onClick={() => setInsightsMinimized(m => !m)}
+              className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-warning/15 flex items-center justify-center">
+                  <Lightbulb size={14} className="text-warning" />
+                </div>
+                <h3 className="text-sm font-semibold tracking-tight">Insights</h3>
+                {alertasCount > 0 && !insightsMinimized && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground font-bold">{alertasCount}</span>
+                )}
+                {insightsMinimized && (
+                  <span className="text-xs text-muted-foreground">
+                    {alertasCount > 0 ? `${alertasCount} alerta${alertasCount > 1 ? 's' : ''}` : 'tudo ok'}
+                  </span>
+                )}
+              </div>
+              {insightsMinimized ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronUp size={16} className="text-muted-foreground" />}
+            </button>
+            {!insightsMinimized && (
+              <div className="p-3 pt-0 space-y-2">
+                {visible.map((ins, i) => {
+                  const Icon = ins.tipo === 'alerta' ? AlertTriangle
+                    : ins.tipo === 'oportunidade' ? TrendingDown
+                    : ins.tipo === 'positivo' ? Sparkles
+                    : Info;
+                  const bg = ins.tipo === 'alerta' ? 'bg-destructive/5 border-destructive/20'
+                    : ins.tipo === 'oportunidade' ? 'bg-warning/5 border-warning/20'
+                    : ins.tipo === 'positivo' ? 'bg-success/5 border-success/20'
+                    : 'bg-muted/30 border-muted';
+                  const iconColor = ins.tipo === 'alerta' ? 'text-destructive'
+                    : ins.tipo === 'oportunidade' ? 'text-warning'
+                    : ins.tipo === 'positivo' ? 'text-success'
+                    : 'text-muted-foreground';
+                  return (
+                    <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border ${bg}`}>
+                      <Icon size={14} className={`shrink-0 mt-0.5 ${iconColor}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold">{ins.titulo}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{ins.descricao}</p>
+                        {ins.acao && <p className="text-[11px] mt-1 font-medium text-secondary">→ {ins.acao}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+                {hidden > 0 && (
+                  <button onClick={() => setInsightsExpanded(true)} className="w-full py-2 text-xs font-medium text-primary hover:underline">
+                    Ver todos os {insights.length} insights ({hidden} oculto{hidden > 1 ? 's' : ''})
+                  </button>
+                )}
+                {insightsExpanded && insights.length > 3 && (
+                  <button onClick={() => setInsightsExpanded(false)} className="w-full py-2 text-xs font-medium text-muted-foreground hover:underline">
+                    Recolher
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Gastos do mês — cards por categoria */}
       {hasData && (

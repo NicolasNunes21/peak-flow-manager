@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate, diasAtras, getWhatsAppScript, formatPercent } from "@/lib/format";
 import { Plus, Search, MessageCircle, ChevronRight, X, Users, Phone, Crown, DollarSign, ArrowLeft, Clock, ShoppingCart, Pencil, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -296,14 +297,21 @@ export default function Clientes() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-secondary">Clientes</h1>
-        <button onClick={() => setShowNovo(true)} className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center active:scale-95">
-          <Plus size={20} />
-        </button>
-      </div>
+    <div className="space-y-5 animate-fade-in">
+      <PageHeader
+        title="Clientes"
+        subtitle={`${ativosCount} ativos · ${vipClientes.length} VIP`}
+        icon={<Users size={20} strokeWidth={2.5} />}
+        iconGradient
+        actions={
+          <button
+            onClick={() => setShowNovo(true)}
+            className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-[hsl(192_85%_32%)] text-primary-foreground flex items-center justify-center shadow-[0_4px_12px_-2px_hsl(192_83%_38%/0.5)] pressable"
+          >
+            <Plus size={20} strokeWidth={2.5} />
+          </button>
+        }
+      />
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

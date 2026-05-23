@@ -10,6 +10,7 @@ import { useCanais } from "@/lib/canaisStore";
 import { Briefcase, AlertTriangle, TrendingUp, TrendingDown, Minus, ChevronRight, Settings, FileText, Sparkles, Info, Shield, Target, Wallet, Building2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
 
 const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -227,21 +228,16 @@ export default function CFOPeak() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-[0_4px_12px_-2px_hsl(192_83%_38%/0.4)]">
-              <Briefcase size={16} className="text-white" strokeWidth={2.5} />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">CFO Peak</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">Visão executiva — {meses[today.getMonth()]}/{String(today.getFullYear()).slice(2)}</p>
-        </div>
-        <Link to="/configuracoes" className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
-          <Settings size={14} /> Configurar pró-labore, reserva, canais
-        </Link>
-      </div>
+      <PageHeader
+        title="CFO Peak"
+        subtitle={`Visão executiva — ${meses[today.getMonth()]}/${String(today.getFullYear()).slice(2)}`}
+        icon={<Briefcase size={20} strokeWidth={2.5} />}
+        iconGradient
+        actions={
+          <Link to="/configuracoes" className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+            <Settings size={14} /> Configurar</Link>
+        }
+      />
 
       {/* Modo offline (localStorage) */}
       {usandoLocalStorage && (

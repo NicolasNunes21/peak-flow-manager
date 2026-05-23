@@ -1,7 +1,8 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Briefcase, ShoppingCart, Truck, Package, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Briefcase, ShoppingCart, Truck, Package, Users, Settings, Sun, Moon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PeakLogo } from "@/components/PeakLogo";
+import { useTheme } from "@/lib/theme";
 
 // Ordem solicitada: Dashboard > CFO Peak > Venda > Compra > Estoque > Clientes
 const navItems = [
@@ -17,6 +18,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
@@ -62,9 +64,17 @@ export default function Layout() {
             })}
           </nav>
 
-          {/* Bottom: Configurações */}
-          <div className="px-3 pb-5 relative">
+          {/* Bottom: tema + Configurações */}
+          <div className="px-3 pb-5 relative space-y-1">
             <div className="mx-1 h-px bg-white/8 mb-3" />
+            <button
+              onClick={toggleTheme}
+              className="group flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium pressable w-full text-white/55 hover:bg-white/5 hover:text-white/90"
+              title={theme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+            >
+              {theme === 'dark' ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
+              {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+            </button>
             <button
               onClick={() => navigate("/configuracoes")}
               className={`group flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium pressable w-full ${
@@ -87,6 +97,13 @@ export default function Layout() {
           </div>
           <div className="hidden md:block" />
           <div className="flex items-center gap-1 md:hidden">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl hover:bg-white/10 transition-colors"
+              title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+            >
+              {theme === 'dark' ? <Sun size={20} className="text-white/80" /> : <Moon size={20} className="text-white/80" />}
+            </button>
             <button
               onClick={() => navigate("/configuracoes")}
               className="p-2 rounded-xl hover:bg-white/10 transition-colors"

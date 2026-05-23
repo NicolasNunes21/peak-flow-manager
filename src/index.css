@@ -55,6 +55,50 @@
     --sidebar-border: 213 30% 22%;
     --sidebar-ring: 192 83% 38%;
   }
+
+  /* ============================================================
+     DARK MODE — navy escuro como base, teal mais vibrante
+     ============================================================ */
+  .dark {
+    --background: 213 35% 8%;            /* #0d1722 */
+    --foreground: 0 0% 96%;
+
+    --card: 213 30% 12%;                  /* #16222e */
+    --card-foreground: 0 0% 96%;
+
+    --popover: 213 30% 12%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 185 73% 50%;               /* ciano mais vibrante no dark */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 213 30% 18%;
+    --secondary-foreground: 0 0% 96%;
+
+    --muted: 213 25% 16%;
+    --muted-foreground: 220 8% 65%;
+
+    --accent: 192 83% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 213 20% 20%;
+    --input: 213 20% 22%;
+    --ring: 185 73% 50%;
+
+    --success: 158 64% 50%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 95% 58%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Sidebar fica praticamente igual (já é navy escura) */
+    --sidebar-background: 213 40% 6%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-accent: 213 30% 14%;
+    --sidebar-border: 213 20% 18%;
+  }
 }
 
 @layer base {
@@ -134,6 +178,19 @@
       0 0 0 1px hsl(0 0% 0% / 0.06),
       0 4px 8px hsl(0 0% 0% / 0.04),
       0 12px 24px -4px hsl(0 0% 0% / 0.06);
+  }
+  /* No dark, troca pra sombras com borda clara (a sombra preta não aparece) */
+  .dark .card-elev {
+    box-shadow:
+      0 0 0 0.5px hsl(0 0% 100% / 0.06),
+      0 1px 2px hsl(0 0% 0% / 0.3),
+      0 4px 12px -2px hsl(0 0% 0% / 0.25);
+  }
+  .dark .card-elev:hover {
+    box-shadow:
+      0 0 0 0.5px hsl(0 0% 100% / 0.1),
+      0 4px 8px hsl(0 0% 0% / 0.3),
+      0 12px 24px -4px hsl(0 0% 0% / 0.35);
   }
 
   /* Smooth press animation */

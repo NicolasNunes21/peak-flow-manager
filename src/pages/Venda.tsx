@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
-import { Search, Minus, Plus, Loader2, Package, ShoppingCart } from "lucide-react";
+import { Search, Minus, Plus, Loader2, Package, ShoppingCart, X } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
@@ -34,6 +34,22 @@ export default function Venda() {
   const [showAddCanal, setShowAddCanal] = useState(false);
   const [novoCanalNome, setNovoCanalNome] = useState("");
   const [novoCanalTipo, setNovoCanalTipo] = useState<'loja' | 'organico' | 'pago' | 'parceria'>('parceria');
+
+  // Carrinho — itens já adicionados (além do item atualmente no form)
+  type ItemCarrinho = {
+    id: string;
+    produto_id: string | null;
+    produto_nome: string;
+    produto_categoria: string | null;
+    qtd_atual: number | null;
+    estoque_min: number | null;
+    quantidade: number;
+    precoVenda: number;
+    custoUnit: number;
+    descontoRs: number;
+    brinde: string;
+  };
+  const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
   const [selectedCliente, setSelectedCliente] = useState<any>(null);
   const [novoClienteNome, setNovoClienteNome] = useState("");
@@ -155,7 +171,48 @@ export default function Venda() {
   const margemPct = precoVenda > 0 ? ((precoVenda - custoUnit) / precoVenda) * 100 : 0;
   const margemRs = precoVenda - custoUnit;
   const margemTotal = margemRs * quantidade;
-  const canSubmit = selectedProduto && formaPgto;
+
+  // Total do carrinho (já adicionados)
+  const totalCarrinho = carrinho.reduce((s, i) => s + i.precoVenda * i.quantidade - i.descontoRs, 0);
+  // Total do item atual (no form)
+  const totalItemAtual = selectedProduto ? precoVenda * quantidade - descontoRs : 0;
+  // Total final pra mostrar no botão
+  const totalVenda = totalCarrinho + totalItemAtual;
+  const numItens = carrinho.length + (selectedProduto ? 1 : 0);
+
+  // Pode finalizar venda quando há ao menos 1 item (no carrinho ou no form)
+  // e forma de pagamento selecionada
+  const canSubmit = (selectedProduto || carrinho.length > 0) && formaPgto;
+
+  // Adicionar item atual ao carrinho e limpar o form pra próximo item
+  const adicionarAoCarrinho = () => {
+    if (!selectedProduto) return;
+    const novoItem: ItemCarrinho = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      produto_id: selectedProduto.id,
+      produto_nome: selectedProduto.nome,
+      produto_categoria: selectedProduto.categoria || null,
+      qtd_atual: selectedProduto.qtd_atual ?? 0,
+      estoque_min: selectedProduto.estoque_min ?? 0,
+      quantidade,
+      precoVenda,
+      custoUnit,
+      descontoRs,
+      brinde: brinde.trim(),
+    };
+    setCarrinho(c => [...c, novoItem]);
+    // Limpa só os campos do item — mantém cliente/forma/canal/data
+    setSelectedProduto(null);
+    setProdutoSearch("");
+    setQuantidade(1);
+    setPrecoVenda(0);
+    setDescontoRs(0);
+    setBrinde("");
+  };
+
+  const removerDoCarrinho = (id: string) => {
+    setCarrinho(c => c.filter(i => i.id !== id));
+  };
 
   const todayStr = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; })();
 
@@ -168,13 +225,33 @@ export default function Venda() {
     setFormaPgto(""); setCanal(canaisAtivos[0]?.nome || ""); setClienteSearch(""); setSelectedCliente(null);
     setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao(""); setDescontoRs(0); setBrinde("");
     setDataVenda(todayStr);
+    setCarrinho([]);
   };
 
   const mutation = useMutation({
     mutationFn: async () => {
+      // 1) Monta lista final: itens do carrinho + item atual do form (se houver)
+      const itensFinais: ItemCarrinho[] = [...carrinho];
+      if (selectedProduto) {
+        itensFinais.push({
+          id: 'current',
+          produto_id: selectedProduto.id,
+          produto_nome: selectedProduto.nome,
+          produto_categoria: selectedProduto.categoria || null,
+          qtd_atual: selectedProduto.qtd_atual ?? 0,
+          estoque_min: selectedProduto.estoque_min ?? 0,
+          quantidade,
+          precoVenda,
+          custoUnit,
+          descontoRs,
+          brinde: brinde.trim(),
+        });
+      }
+      if (itensFinais.length === 0) throw new Error('Nenhum item para registrar');
+
+      // 2) Cria cliente novo se necessário
       let clienteId = selectedCliente?.id || null;
       let clienteNome = selectedCliente?.nome || null;
-
       if (showNovoCliente && novoClienteNome) {
         const { data: newCliente } = await supabase.from("clientes").insert({
           nome: novoClienteNome, whatsapp: novoClienteWhats || null,
@@ -184,52 +261,85 @@ export default function Venda() {
         if (newCliente) { clienteId = newCliente.id; clienteNome = newCliente.nome; }
       }
 
-      const totalPreco = precoVenda * quantidade - descontoRs;
+      // 3) Timestamp único pra agrupar todos os itens dessa venda
       const vendaDate = new Date(dataVenda + 'T12:00:00');
-      await supabase.from("vendas").insert({
-        produto_id: selectedProduto.id, produto_nome: selectedProduto.nome,
-        cliente_id: clienteId, cliente_nome: clienteNome, quantidade,
-        preco_venda: precoVenda, custo_unit: custoUnit, forma_pgto: formaPgto,
-        canal, observacao: observacao || null,
-        desconto_rs: descontoRs > 0 ? descontoRs : null,
-        brinde: brinde.trim() || null,
-        created_at: vendaDate.toISOString(),
-      } as any);
+      const vendaTimestamp = vendaDate.toISOString();
 
-      await supabase.from("produtos").update({
-        qtd_atual: (selectedProduto.qtd_atual || 0) - quantidade,
-      }).eq("id", selectedProduto.id);
+      // 4) Insere uma linha por item (com mesmo created_at + cliente_id, agrupador implícito)
+      const linhas = itensFinais.map(item => ({
+        produto_id: item.produto_id,
+        produto_nome: item.produto_nome,
+        cliente_id: clienteId,
+        cliente_nome: clienteNome,
+        quantidade: item.quantidade,
+        preco_venda: item.precoVenda,
+        custo_unit: item.custoUnit,
+        forma_pgto: formaPgto,
+        canal,
+        observacao: observacao || null,
+        desconto_rs: item.descontoRs > 0 ? item.descontoRs : null,
+        brinde: item.brinde || null,
+        created_at: vendaTimestamp,
+      }));
+      const { error: insErr } = await supabase.from("vendas").insert(linhas as any);
+      if (insErr) throw insErr;
 
+      // 5) Atualiza estoque de cada produto (consolida se mesmo produto aparece 2x)
+      const stockDelta = new Map<string, number>();
+      const stockSnapshot = new Map<string, { atual: number; min: number; nome: string }>();
+      itensFinais.forEach(item => {
+        if (!item.produto_id) return;
+        stockDelta.set(item.produto_id, (stockDelta.get(item.produto_id) || 0) + item.quantidade);
+        if (!stockSnapshot.has(item.produto_id)) {
+          stockSnapshot.set(item.produto_id, {
+            atual: item.qtd_atual ?? 0,
+            min: item.estoque_min ?? 0,
+            nome: item.produto_nome,
+          });
+        }
+      });
+      for (const [produtoId, totalVendido] of stockDelta.entries()) {
+        const snap = stockSnapshot.get(produtoId)!;
+        const novaQtd = snap.atual - totalVendido;
+        await supabase.from("produtos").update({ qtd_atual: novaQtd }).eq("id", produtoId);
+        if (novaQtd < snap.min) {
+          toast({ title: "⚠ Estoque baixo", description: `${snap.nome} ficou abaixo do mínimo.`, variant: "destructive" });
+        }
+      }
+
+      // 6) Cliente: total da venda e categoria do item mais valioso
+      const totalVendaCalc = itensFinais.reduce((s, i) => s + i.precoVenda * i.quantidade - i.descontoRs, 0);
       if (clienteId) {
-        const categoria = selectedProduto.categoria || '';
+        const itemMaiorValor = [...itensFinais].sort((a, b) => (b.precoVenda * b.quantidade) - (a.precoVenda * a.quantidade))[0];
+        const categoria = itemMaiorValor.produto_categoria || '';
         const recontatoDias = getRecontatoDias(categoria);
         const proximoRecontato = new Date();
         proximoRecontato.setDate(proximoRecontato.getDate() + recontatoDias);
         const currentTotal = selectedCliente?.total_acumulado || 0;
         await supabase.from("clientes").update({
           data_ultima_compra: dataVenda,
-          total_acumulado: currentTotal + totalPreco,
+          total_acumulado: currentTotal + totalVendaCalc,
           ultimo_produto_categoria: categoria,
-          valor_ultima_compra: totalPreco,
+          valor_ultima_compra: totalVendaCalc,
           data_proximo_recontato: proximoRecontato.toISOString().split('T')[0],
-          status: (currentTotal + totalPreco) >= 500 ? 'VIP' : 'Ativo',
+          status: (currentTotal + totalVendaCalc) >= 500 ? 'VIP' : 'Ativo',
         }).eq("id", clienteId);
       }
 
-      const newQtd = (selectedProduto.qtd_atual || 0) - quantidade;
-      if (newQtd < (selectedProduto.estoque_min || 0)) {
-        toast({ title: "⚠ Estoque baixo", description: `${selectedProduto.nome} ficou abaixo do mínimo.`, variant: "destructive" });
-      }
-
-      return { totalPreco, produtoNome: selectedProduto.nome, margemPct };
+      return { totalVendaCalc, numItens: itensFinais.length };
     },
-    onSuccess: ({ totalPreco, produtoNome, margemPct: m }) => {
-      toast({ title: "✅ Venda registrada", description: `${produtoNome} × ${quantidade} | ${formatCurrency(totalPreco)} | Margem: ${formatPercent(m)}` });
+    onSuccess: ({ totalVendaCalc, numItens }) => {
+      toast({
+        title: "✅ Venda registrada",
+        description: numItens > 1
+          ? `${numItens} itens · Total ${formatCurrency(totalVendaCalc)}`
+          : `Total ${formatCurrency(totalVendaCalc)}`,
+      });
       queryClient.invalidateQueries();
       resetForm();
     },
-    onError: () => {
-      toast({ title: "Erro", description: "Erro ao salvar. Tente novamente.", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: "Erro", description: err?.message || "Erro ao salvar. Tente novamente.", variant: "destructive" });
     },
   });
 
@@ -506,6 +616,51 @@ export default function Venda() {
           </div>
         )}
 
+        {/* Botão: adicionar mais um item ao carrinho */}
+        {selectedProduto && (
+          <button
+            onClick={adicionarAoCarrinho}
+            type="button"
+            className="w-full py-3 rounded-xl border-2 border-dashed border-primary/40 text-primary text-sm font-semibold hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            Adicionar este item e incluir mais um
+          </button>
+        )}
+
+        {/* Carrinho — itens já adicionados */}
+        {carrinho.length > 0 && (
+          <div className="bg-card rounded-2xl p-4 card-elev space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">No carrinho ({carrinho.length})</p>
+              <button onClick={() => setCarrinho([])} className="text-[11px] text-muted-foreground hover:text-destructive">Limpar</button>
+            </div>
+            {carrinho.map(item => {
+              const totalItem = item.precoVenda * item.quantidade - item.descontoRs;
+              return (
+                <div key={item.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.produto_nome}</p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">
+                      {item.quantidade}× {formatCurrency(item.precoVenda)}
+                      {item.descontoRs > 0 && ` − ${formatCurrency(item.descontoRs)} desc.`}
+                      {item.brinde && ` · 🎁 ${item.brinde}`}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold tabular-nums whitespace-nowrap">{formatCurrency(totalItem)}</p>
+                  <button onClick={() => removerDoCarrinho(item.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+            <div className="flex items-center justify-between pt-2 border-t text-sm">
+              <span className="font-medium">Subtotal do carrinho</span>
+              <span className="font-bold tabular-nums">{formatCurrency(totalCarrinho)}</span>
+            </div>
+          </div>
+        )}
+
         {/* Observação */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-center block">Observação</label>
@@ -513,9 +668,17 @@ export default function Venda() {
         </div>
 
         {/* Submit */}
-        <button disabled={!canSubmit || mutation.isPending} onClick={() => mutation.mutate()} className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-          {mutation.isPending ? <Loader2 size={20} className="animate-spin" /> : null}
-          Confirmar Venda
+        <button
+          disabled={!canSubmit || mutation.isPending}
+          onClick={() => mutation.mutate()}
+          className="w-full py-4 rounded-xl bg-gradient-to-br from-primary to-[hsl(192_85%_32%)] text-primary-foreground font-semibold text-base pressable shadow-[0_8px_24px_-8px_hsl(192_83%_38%/0.5)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {mutation.isPending && <Loader2 size={20} className="animate-spin" />}
+          {numItens > 1
+            ? `Finalizar venda (${numItens} itens · ${formatCurrency(totalVenda)})`
+            : numItens === 1
+              ? `Confirmar Venda · ${formatCurrency(totalVenda)}`
+              : 'Confirmar Venda'}
         </button>
       </div>
     </div>

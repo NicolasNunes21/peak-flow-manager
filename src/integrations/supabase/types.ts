@@ -61,6 +61,51 @@ export type Database = {
           },
         ]
       }
+      canais: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome: string
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      config_financeira: {
+        Row: {
+          chave: string
+          updated_at: string | null
+          valor: number
+          valor_texto: string | null
+        }
+        Insert: {
+          chave: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Update: {
+          chave?: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Relationships: []
+      }
       categorias: {
         Row: {
           created_at: string | null
@@ -147,6 +192,7 @@ export type Database = {
       }
       custos_fixos: {
         Row: {
+          canal: string | null
           categoria: string
           created_at: string | null
           data: string | null
@@ -157,6 +203,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          canal?: string | null
           categoria?: string
           created_at?: string | null
           data?: string | null
@@ -167,6 +214,7 @@ export type Database = {
           valor?: number
         }
         Update: {
+          canal?: string | null
           categoria?: string
           created_at?: string | null
           data?: string | null

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
@@ -7,7 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
 
 const FORMAS_PGTO = ["PIX", "Dinheiro", "Crédito", "Débito"];
-const CANAIS = ["Loja física", "Delivery", "Academia parceira"];
+
+const TIPO_CANAL_LABEL: Record<string, string> = {
+  loja: 'Loja',
+  organico: 'Orgânico',
+  pago: 'Pago',
+  parceria: 'Parceria',
+};
 
 export default function Venda() {
   const { toast } = useToast();
@@ -20,7 +26,10 @@ export default function Venda() {
   const [quantidade, setQuantidade] = useState(1);
   const [precoVenda, setPrecoVenda] = useState<number>(0);
   const [formaPgto, setFormaPgto] = useState("");
-  const [canal, setCanal] = useState("Loja física");
+  const [canal, setCanal] = useState("");
+  const [showAddCanal, setShowAddCanal] = useState(false);
+  const [novoCanalNome, setNovoCanalNome] = useState("");
+  const [novoCanalTipo, setNovoCanalTipo] = useState<'loja' | 'organico' | 'pago' | 'parceria'>('parceria');
   const [clienteSearch, setClienteSearch] = useState("");
   const [selectedCliente, setSelectedCliente] = useState<any>(null);
   const [novoClienteNome, setNovoClienteNome] = useState("");
@@ -33,6 +42,45 @@ export default function Venda() {
   const [dataVenda, setDataVenda] = useState(() => {
     const t = new Date();
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  });
+
+  const { data: canais } = useQuery({
+    queryKey: ["canais"],
+    queryFn: async () => {
+      const { data } = await supabase.from("canais").select("*").eq("ativo", true).order("nome");
+      return data || [];
+    },
+  });
+  const canaisAtivos = useMemo(() => canais || [], [canais]);
+
+  // Pré-selecionar canal default (Loja física se houver, senão o primeiro)
+  useEffect(() => {
+    if (!canal && canaisAtivos.length > 0) {
+      const loja = canaisAtivos.find(c => c.tipo === 'loja');
+      setCanal(loja?.nome || canaisAtivos[0].nome);
+    }
+  }, [canaisAtivos, canal]);
+
+  const addCanalMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from("canais")
+        .insert({ nome: novoCanalNome.trim(), tipo: novoCanalTipo })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["canais"] });
+      setCanal(data.nome);
+      setNovoCanalNome("");
+      setShowAddCanal(false);
+      toast({ title: "✅ Canal adicionado" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao adicionar canal", description: err?.message, variant: "destructive" as const });
+    },
   });
 
   const { data: produtos } = useQuery({
@@ -120,7 +168,7 @@ export default function Venda() {
 
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setQuantidade(1); setPrecoVenda(0);
-    setFormaPgto(""); setCanal("Loja física"); setClienteSearch(""); setSelectedCliente(null);
+    setFormaPgto(""); setCanal(canaisAtivos[0]?.nome || ""); setClienteSearch(""); setSelectedCliente(null);
     setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao("");
     setDataVenda(todayStr);
   };
@@ -310,11 +358,61 @@ export default function Venda() {
         {/* Canal */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-center block">Canal</label>
-          <div className="flex gap-2">
-            {CANAIS.map(c => (
-              <button key={c} onClick={() => setCanal(c)} className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-[0.97] ${canal === c ? "bg-secondary text-secondary-foreground" : "bg-card border hover:bg-muted"}`}>{c}</button>
+          <div className="flex flex-wrap gap-2">
+            {canaisAtivos.map(c => (
+              <button
+                key={c.id}
+                onClick={() => setCanal(c.nome)}
+                className={`px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-[0.97] flex items-center gap-1.5 ${canal === c.nome ? "bg-secondary text-secondary-foreground" : "bg-card border hover:bg-muted"}`}
+              >
+                <span>{c.nome}</span>
+                <span className={`text-[9px] uppercase ${canal === c.nome ? 'opacity-70' : 'text-muted-foreground'}`}>{TIPO_CANAL_LABEL[c.tipo] || c.tipo}</span>
+              </button>
             ))}
+            <button
+              onClick={() => setShowAddCanal(true)}
+              className="px-3 py-2 rounded-xl text-xs font-medium border border-dashed text-muted-foreground hover:bg-muted transition-all active:scale-[0.97] flex items-center gap-1"
+            >
+              <Plus size={12} /> Novo
+            </button>
           </div>
+          {showAddCanal && (
+            <div className="bg-muted/50 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-secondary">Novo canal de venda</p>
+              <input
+                autoFocus
+                placeholder="Nome do canal (ex: Personal João, Crossfit Box X)"
+                className="w-full px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={novoCanalNome}
+                onChange={e => setNovoCanalNome(e.target.value)}
+              />
+              <select
+                className="w-full px-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={novoCanalTipo}
+                onChange={e => setNovoCanalTipo(e.target.value as any)}
+              >
+                <option value="parceria">Parceria (personal, academia, indicação remunerada)</option>
+                <option value="organico">Orgânico (Instagram, indicação grátis, boca a boca)</option>
+                <option value="pago">Pago (Meta Ads, Google Ads, impulsionamento)</option>
+                <option value="loja">Loja (canal próprio físico/digital)</option>
+              </select>
+              <div className="flex gap-2">
+                <button
+                  disabled={!novoCanalNome.trim() || addCanalMutation.isPending}
+                  onClick={() => addCanalMutation.mutate()}
+                  className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  {addCanalMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Salvar
+                </button>
+                <button
+                  onClick={() => { setShowAddCanal(false); setNovoCanalNome(""); }}
+                  className="px-3 py-1.5 rounded-lg bg-muted text-xs font-medium"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Data da venda */}

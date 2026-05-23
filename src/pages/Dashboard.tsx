@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, formatDate, formatTime, diasAtras, diaSemanaAbrev, getWhatsAppScript, getSaudacao, getDataHojeCompleta, margemColorClass } from "@/lib/format";
-import { TrendingUp, Target, Percent, Receipt, MessageCircle, ChevronDown, ChevronRight, Info, BarChart3, Lightbulb, AlertTriangle, Sparkles, TrendingDown } from "lucide-react";
+import { TrendingUp, Target, Percent, Receipt, MessageCircle, ChevronDown, ChevronRight, ChevronUp, Info, BarChart3, Lightbulb, AlertTriangle, Sparkles, TrendingDown, Home, Megaphone, Building2, Handshake, MoreHorizontal, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -18,6 +19,9 @@ export default function Dashboard() {
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [selectedChartDay, setSelectedChartDay] = useState<number | null>(null);
   const [periodo, setPeriodo] = useState<'semana' | 'mes'>('semana');
+  const [insightsExpanded, setInsightsExpanded] = useState(false);
+  const [insightsMinimized, setInsightsMinimized] = useState(false);
+  const [selectedGastoCategoria, setSelectedGastoCategoria] = useState<string | null>(null);
 
   const { data: vendas, isLoading: loadingVendas } = useQuery({
     queryKey: ["vendas-dashboard"],
@@ -398,97 +402,173 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Insights inteligentes */}
+      {/* Insights inteligentes — colapsável + expansível */}
+      {hasData && (() => {
+        const alertasCount = insights.filter(i => i.tipo === 'alerta' || i.tipo === 'oportunidade').length;
+        const visibleCount = insightsExpanded ? insights.length : 3;
+        const visible = insights.slice(0, visibleCount);
+        const hidden = insights.length - visible.length;
+        return (
+          <div className="bg-card rounded-xl shadow-sm">
+            <button
+              onClick={() => setInsightsMinimized(m => !m)}
+              className="w-full flex items-center justify-between p-3 hover:bg-muted/30 rounded-t-xl transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Lightbulb size={16} className="text-warning" />
+                <h3 className="text-sm font-semibold text-secondary">Insights</h3>
+                {alertasCount > 0 && !insightsMinimized && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground font-bold">{alertasCount}</span>
+                )}
+                {insightsMinimized && (
+                  <span className="text-xs text-muted-foreground">
+                    {alertasCount > 0 ? `${alertasCount} alerta${alertasCount > 1 ? 's' : ''}` : 'tudo ok'}
+                  </span>
+                )}
+              </div>
+              {insightsMinimized ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronUp size={16} className="text-muted-foreground" />}
+            </button>
+            {!insightsMinimized && (
+              <div className="p-3 pt-0 space-y-2">
+                {visible.map((ins, i) => {
+                  const Icon = ins.tipo === 'alerta' ? AlertTriangle
+                    : ins.tipo === 'oportunidade' ? TrendingDown
+                    : ins.tipo === 'positivo' ? Sparkles
+                    : Info;
+                  const bg = ins.tipo === 'alerta' ? 'bg-destructive/5 border-destructive/20'
+                    : ins.tipo === 'oportunidade' ? 'bg-warning/5 border-warning/20'
+                    : ins.tipo === 'positivo' ? 'bg-success/5 border-success/20'
+                    : 'bg-muted/30 border-muted';
+                  const iconColor = ins.tipo === 'alerta' ? 'text-destructive'
+                    : ins.tipo === 'oportunidade' ? 'text-warning'
+                    : ins.tipo === 'positivo' ? 'text-success'
+                    : 'text-muted-foreground';
+                  return (
+                    <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border ${bg}`}>
+                      <Icon size={14} className={`shrink-0 mt-0.5 ${iconColor}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold">{ins.titulo}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{ins.descricao}</p>
+                        {ins.acao && <p className="text-[11px] mt-1 font-medium text-secondary">→ {ins.acao}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+                {hidden > 0 && (
+                  <button onClick={() => setInsightsExpanded(true)} className="w-full py-2 text-xs font-medium text-primary hover:underline">
+                    Ver todos os {insights.length} insights ({hidden} oculto{hidden > 1 ? 's' : ''})
+                  </button>
+                )}
+                {insightsExpanded && insights.length > 3 && (
+                  <button onClick={() => setInsightsExpanded(false)} className="w-full py-2 text-xs font-medium text-muted-foreground hover:underline">
+                    Recolher
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Gastos do mês — cards por categoria */}
       {hasData && (
         <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Lightbulb size={16} className="text-warning" />
-            <h3 className="text-sm font-semibold text-secondary">Insights</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-secondary">Gastos do mês</h3>
+            <Link to="/configuracoes" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+              <Plus size={12} /> Adicionar
+            </Link>
           </div>
-          <div className="space-y-2">
-            {insights.map((ins, i) => {
-              const Icon = ins.tipo === 'alerta' ? AlertTriangle
-                : ins.tipo === 'oportunidade' ? TrendingDown
-                : ins.tipo === 'positivo' ? Sparkles
-                : Info;
-              const bg = ins.tipo === 'alerta' ? 'bg-destructive/5 border-destructive/20'
-                : ins.tipo === 'oportunidade' ? 'bg-warning/5 border-warning/20'
-                : ins.tipo === 'positivo' ? 'bg-success/5 border-success/20'
-                : 'bg-muted/30 border-muted';
-              const iconColor = ins.tipo === 'alerta' ? 'text-destructive'
-                : ins.tipo === 'oportunidade' ? 'text-warning'
-                : ins.tipo === 'positivo' ? 'text-success'
-                : 'text-muted-foreground';
-              return (
-                <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border ${bg}`}>
-                  <Icon size={14} className={`shrink-0 mt-0.5 ${iconColor}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold">{ins.titulo}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{ins.descricao}</p>
-                    {ins.acao && <p className="text-[11px] mt-1 font-medium text-secondary">→ {ins.acao}</p>}
-                  </div>
-                </div>
-              );
-            })}
+          {(() => {
+            const CATS = [
+              { key: 'Custo Fixo', icon: Home, color: 'text-secondary', bg: 'bg-secondary/10' },
+              { key: 'Marketing', icon: Megaphone, color: 'text-primary', bg: 'bg-primary/10' },
+              { key: 'Anúncios', icon: BarChart3, color: 'text-warning', bg: 'bg-warning/10' },
+              { key: 'Investimento', icon: Building2, color: 'text-success', bg: 'bg-success/10' },
+              { key: 'Parceria', icon: Handshake, color: 'text-accent-foreground', bg: 'bg-accent/40' },
+              { key: 'Outros', icon: MoreHorizontal, color: 'text-muted-foreground', bg: 'bg-muted' },
+            ];
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {CATS.map(({ key, icon: Icon, color, bg }) => {
+                  const valor = gastosPorCategoria[key] || 0;
+                  const count = gastosDoMes.filter(g => ((g as any).categoria || 'Custo Fixo') === key).length;
+                  const pct = fatMes > 0 ? (valor / fatMes) * 100 : 0;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        if (valor > 0) {
+                          setSelectedGastoCategoria(key);
+                          setOpenSheet('gastoCategoria');
+                        }
+                      }}
+                      disabled={valor === 0}
+                      className={`text-left p-3 rounded-lg border ${valor > 0 ? 'hover:bg-muted/30 cursor-pointer' : 'opacity-50 cursor-default'} transition-colors`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center`}>
+                          <Icon size={14} className={color} />
+                        </div>
+                        {valor > 0 && fatMes > 0 && (
+                          <span className="text-[10px] text-muted-foreground font-medium">{pct.toFixed(0)}%</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{key}</p>
+                      <p className="text-sm font-bold text-destructive">{formatCurrency(valor)}</p>
+                      <p className="text-[10px] text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <div className="flex items-center justify-between pt-2 border-t text-xs">
+            <span className="font-medium">Total gasto no mês</span>
+            <span className="font-bold text-destructive">{formatCurrency(totalGastosMes)}</span>
           </div>
         </div>
       )}
 
-      {/* Quebra do mês — pra onde foi o dinheiro */}
+      {/* Resultado do mês — estilo extrato (linha por linha) */}
       {hasData && (
-        <button onClick={() => setOpenSheet('quebra')} className="w-full bg-card rounded-xl p-4 shadow-sm space-y-3 text-left transition-transform active:scale-[0.99]">
+        <div className="bg-card rounded-xl p-4 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-secondary">Quebra do mês</h3>
-            <Info size={12} className="text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-secondary">Resultado do mês</h3>
+            <button onClick={() => setOpenSheet('quebra')} className="text-xs text-primary hover:underline">Detalhes</button>
           </div>
-          {(() => {
-            const total = Math.max(fatMes, 1);
-            const items = [
-              { label: 'Custo dos produtos (CMV)', valor: custosMes, color: 'bg-destructive' },
-              ...Object.entries(gastosPorCategoria).map(([cat, v]) => ({
-                label: cat,
-                valor: v,
-                color: cat === 'Custo Fixo' ? 'bg-secondary'
-                  : cat === 'Marketing' ? 'bg-primary'
-                  : cat === 'Anúncios' ? 'bg-warning'
-                  : cat === 'Investimento' ? 'bg-success'
-                  : cat === 'Parceria' ? 'bg-accent'
-                  : 'bg-muted-foreground',
-              })),
-              { label: 'Sobra real', valor: Math.max(sobraReal, 0), color: sobraReal >= 0 ? 'bg-success' : 'bg-destructive' },
-            ].filter(i => i.valor > 0);
-            return (
-              <>
-                <div className="flex h-2 rounded-full overflow-hidden bg-muted">
-                  {items.map((i, idx) => (
-                    <div key={idx} className={i.color} style={{ width: `${(i.valor / total) * 100}%` }} title={`${i.label}: ${formatCurrency(i.valor)}`} />
-                  ))}
-                </div>
-                <div className="space-y-1.5">
-                  {items.map((i, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${i.color}`} />
-                        <span>{i.label}</span>
-                      </div>
-                      <span className="font-medium">{formatCurrency(i.valor)} <span className="text-muted-foreground">({((i.valor / total) * 100).toFixed(0)}%)</span></span>
-                    </div>
-                  ))}
-                  <div className="border-t pt-2 mt-1 flex items-center justify-between text-xs">
-                    <span className="font-semibold">Faturamento total</span>
-                    <span className="font-bold">{formatCurrency(fatMes)}</span>
-                  </div>
-                  {sobraReal < 0 && (
-                    <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="font-semibold text-destructive">Resultado negativo</span>
-                      <span className="font-bold text-destructive">{formatCurrency(sobraReal)}</span>
-                    </div>
-                  )}
-                </div>
-              </>
-            );
-          })()}
-        </button>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Faturamento</span>
+              <span className="font-medium">{formatCurrency(fatMes)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">− Custo dos produtos (CMV)</span>
+              <span className="font-medium text-destructive">−{formatCurrency(custosMes)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-1.5 border-t">
+              <span className="font-medium">= Lucro bruto</span>
+              <span className={`font-bold ${margemMediaMes >= 30 ? 'text-success' : margemMediaMes >= 20 ? 'text-warning' : 'text-destructive'}`}>
+                {formatCurrency(fatMes - custosMes)} <span className="text-xs font-normal">({formatPercent(margemMediaMes)})</span>
+              </span>
+            </div>
+            {Object.entries(gastosPorCategoria).map(([cat, v]) => (
+              <div key={cat} className="flex items-center justify-between">
+                <span className="text-muted-foreground">− {cat}</span>
+                <span className="font-medium text-destructive">−{formatCurrency(v)}</span>
+              </div>
+            ))}
+            <div className={`flex items-center justify-between pt-1.5 border-t ${sobraReal >= 0 ? '' : ''}`}>
+              <span className="font-semibold">= Sobra de caixa</span>
+              <span className={`font-bold ${sobraReal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {formatCurrency(sobraReal)}
+              </span>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground pt-1">
+            Sobra de caixa é o que sobrou no mês. Ainda saem daí: pró-labore, impostos, reposição de estoque.
+          </p>
+        </div>
       )}
 
       {/* Resumo do mês — clickable */}
@@ -780,6 +860,52 @@ export default function Dashboard() {
             <div className="bg-muted/30 rounded-xl p-3">
               <p className="text-xs text-muted-foreground"><strong>O que fazer:</strong> {fatMes >= breakEven ? 'Você já atingiu o break-even! Todo faturamento adicional é lucro líquido.' : `Faltam ${formatCurrency(breakEven - fatMes)} para atingir o ponto de equilíbrio.`}</p>
             </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Gasto por categoria — drill-down */}
+      <Sheet open={openSheet === 'gastoCategoria'} onOpenChange={o => !o && setOpenSheet(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader><SheetTitle>{selectedGastoCategoria}</SheetTitle></SheetHeader>
+          <div className="space-y-3 mt-4">
+            {selectedGastoCategoria && (() => {
+              const items = gastosDoMes.filter(g => ((g as any).categoria || 'Custo Fixo') === selectedGastoCategoria);
+              const total = items.reduce((s, g) => s + Number(g.valor), 0);
+              return (
+                <>
+                  <div className="bg-muted/50 rounded-xl p-3">
+                    <p className="text-xs text-muted-foreground">Total no mês</p>
+                    <p className="text-2xl font-bold text-destructive">{formatCurrency(total)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {items.length} item{items.length !== 1 ? 's' : ''}
+                      {fatMes > 0 && ` · ${((total / fatMes) * 100).toFixed(1)}% do faturamento`}
+                    </p>
+                  </div>
+                  <div className="divide-y border rounded-xl overflow-hidden">
+                    {items.map(g => (
+                      <div key={g.id} className="p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{g.nome}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {(g as any).recorrencia === 'mensal'
+                                ? 'Recorrente mensal'
+                                : (g as any).data ? formatDate(new Date((g as any).data)) : 'Único'}
+                              {(g as any).descricao && ` · ${(g as any).descricao}`}
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold text-destructive whitespace-nowrap">−{formatCurrency(Number(g.valor))}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Link to="/configuracoes" className="block text-center py-2 text-xs font-medium text-primary hover:underline">
+                    Gerenciar gastos em Configurações →
+                  </Link>
+                </>
+              );
+            })()}
           </div>
         </SheetContent>
       </Sheet>

@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      canais: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome: string
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       categorias: {
         Row: {
           created_at: string | null
@@ -80,23 +104,56 @@ export type Database = {
         }
         Relationships: []
       }
+      config_financeira: {
+        Row: {
+          chave: string
+          updated_at: string | null
+          valor: number
+          valor_texto: string | null
+        }
+        Insert: {
+          chave: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Update: {
+          chave?: string
+          updated_at?: string | null
+          valor?: number
+          valor_texto?: string | null
+        }
+        Relationships: []
+      }
       custos_fixos: {
         Row: {
+          canal: string | null
+          categoria: string
           created_at: string | null
+          data: string | null
+          descricao: string | null
           id: string
           nome: string
           recorrencia: string
           valor: number
         }
         Insert: {
+          canal?: string | null
+          categoria?: string
           created_at?: string | null
+          data?: string | null
+          descricao?: string | null
           id?: string
           nome: string
           recorrencia?: string
           valor?: number
         }
         Update: {
+          canal?: string | null
+          categoria?: string
           created_at?: string | null
+          data?: string | null
+          descricao?: string | null
           id?: string
           nome?: string
           recorrencia?: string

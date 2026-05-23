@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      canais: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome: string
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       categorias: {
         Row: {
           created_at: string | null
@@ -77,87 +101,6 @@ export type Database = {
           ultimo_produto_categoria?: string | null
           valor_ultima_compra?: number | null
           whatsapp?: string | null
-        }
-        Relationships: []
-      }
-      compras: {
-        Row: {
-          created_at: string | null
-          custo_total: number | null
-          custo_unit: number
-          data_compra: string | null
-          fornecedor_nome: string | null
-          id: string
-          observacao: string | null
-          produto_id: string | null
-          produto_nome: string | null
-          quantidade: number
-        }
-        Insert: {
-          created_at?: string | null
-          custo_total?: number | null
-          custo_unit: number
-          data_compra?: string | null
-          fornecedor_nome?: string | null
-          id?: string
-          observacao?: string | null
-          produto_id?: string | null
-          produto_nome?: string | null
-          quantidade?: number
-        }
-        Update: {
-          created_at?: string | null
-          custo_total?: number | null
-          custo_unit?: number
-          data_compra?: string | null
-          fornecedor_nome?: string | null
-          id?: string
-          observacao?: string | null
-          produto_id?: string | null
-          produto_nome?: string | null
-          quantidade?: number
-        }
-        Relationships: []
-      }
-      fornecedores: {
-        Row: {
-          created_at: string | null
-          id: string
-          nome: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          nome: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          nome?: string
-        }
-        Relationships: []
-      }
-      canais: {
-        Row: {
-          ativo: boolean
-          created_at: string | null
-          id: string
-          nome: string
-          tipo: string
-        }
-        Insert: {
-          ativo?: boolean
-          created_at?: string | null
-          id?: string
-          nome: string
-          tipo?: string
-        }
-        Update: {
-          ativo?: boolean
-          created_at?: string | null
-          id?: string
-          nome?: string
-          tipo?: string
         }
         Relationships: []
       }

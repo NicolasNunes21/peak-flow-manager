@@ -31,6 +31,7 @@ export type ConfigFinanceira = {
   meta_lucro_mensal: number;
   nome_socio1?: string;
   nome_socio2?: string;
+  data_abertura_loja?: string | null;
 };
 
 // ============================================================
@@ -108,23 +109,33 @@ export function historicoMensal(opts: {
   vendas: Venda[];           // vendas para análise
   gastos: Gasto[];           // todos os gastos
   meses?: number;            // qtd de meses (modo legacy); ignorado se desdeInicio definido
-  desdeInicio?: Date | null; // se definido, começa nesse mês até o mês atual (limitado a 12)
+  desdeInicio?: Date | null; // se definido, começa NESSE MÊS (inclusive). Cap de 24 meses.
   hoje?: Date;
 }): SnapshotMes[] {
   const hoje = opts.hoje ?? new Date();
+  const mesAtualInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
-  // Calcula quantos meses voltar
-  let mesesVoltar: number;
+  // Calcula data de início do histórico
+  let inicioMes: Date;
   if (opts.desdeInicio) {
     const inicio = opts.desdeInicio;
-    const diffMeses = (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth());
-    mesesVoltar = Math.max(1, Math.min(diffMeses + 1, 12));
+    inicioMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+    // Se data de início é futura ou igual ao mês atual, mostra só o mês atual
+    if (inicioMes > mesAtualInicio) inicioMes = mesAtualInicio;
+    // Cap: nunca mostrar mais de 24 meses (incluindo o mês atual)
+    const limiteRetro = new Date(hoje.getFullYear(), hoje.getMonth() - 23, 1);
+    if (inicioMes < limiteRetro) inicioMes = limiteRetro;
   } else {
-    mesesVoltar = opts.meses ?? 6;
+    const meses = opts.meses ?? 6;
+    inicioMes = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1);
   }
 
+  // Calcula quantos meses entre inicioMes e mesAtualInicio (inclusive ambos)
+  const mesesTotal = (mesAtualInicio.getFullYear() - inicioMes.getFullYear()) * 12
+    + (mesAtualInicio.getMonth() - inicioMes.getMonth()) + 1;
+
   const result: SnapshotMes[] = [];
-  for (let i = mesesVoltar - 1; i >= 0; i--) {
+  for (let i = mesesTotal - 1; i >= 0; i--) {
     const ref = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
     const next = new Date(hoje.getFullYear(), hoje.getMonth() - i + 1, 1);
     const ano = ref.getFullYear();

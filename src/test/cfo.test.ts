@@ -219,10 +219,24 @@ describe("historicoMensal", () => {
     expect(hist[0].label).toContain('Mai');
   });
 
-  it("desdeInicio limita a 12 meses mesmo se loja for mais antiga", () => {
+  it("desdeInicio limita a 24 meses mesmo se loja for mais antiga", () => {
     const muitoAntigo = new Date('2020-01-01T00:00:00Z');
     const hist = historicoMensal({ vendas: [], gastos: [], desdeInicio: muitoAntigo, hoje: HOJE });
-    expect(hist.length).toBeLessThanOrEqual(12);
+    expect(hist.length).toBeLessThanOrEqual(24);
+  });
+
+  it("desdeInicio NÃO mostra meses anteriores ao início (mesmo com gastos mensais)", () => {
+    // Loja começou em março/26. Não deve aparecer Jan/26, Fev/26 com EBITDA -R$1950.
+    const marco = new Date('2026-03-15T00:00:00Z');
+    const gastos = [gasto({ valor: 1950, categoria: 'Custo Fixo', recorrencia: 'mensal' })];
+    const hist = historicoMensal({ vendas: [], gastos, desdeInicio: marco, hoje: HOJE });
+    // Hoje é 23/maio/26 → deve ter Mar, Abr, Mai (3 meses)
+    expect(hist).toHaveLength(3);
+    // Primeiro mês é Mar, último é Mai
+    expect(hist[0].label).toContain('Mar');
+    expect(hist[hist.length - 1].label).toContain('Mai');
+    // Nenhum dos meses retornados é Fev, Jan, etc.
+    expect(hist.every(h => !h.label.includes('Fev') && !h.label.includes('Jan'))).toBe(true);
   });
 });
 

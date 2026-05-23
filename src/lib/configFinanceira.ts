@@ -14,6 +14,7 @@ export type ConfigFinanceira = {
   meta_lucro_mensal: number;
   nome_socio1: string;
   nome_socio2: string;
+  data_abertura_loja: string | null; // ISO date 'YYYY-MM-DD'; null = usa primeira venda
 };
 
 export const CONFIG_DEFAULT: ConfigFinanceira = {
@@ -25,6 +26,7 @@ export const CONFIG_DEFAULT: ConfigFinanceira = {
   meta_lucro_mensal: 0,
   nome_socio1: 'Você',
   nome_socio2: 'Sócio',
+  data_abertura_loja: null,
 };
 
 const STORAGE_KEY = 'peak-config-financeira-v1';
@@ -67,6 +69,7 @@ async function salvarConfigSupabase(c: ConfigFinanceira): Promise<void> {
     { chave: 'teto_mei_anual', valor: c.teto_mei_anual, valor_texto: 'Limite anual MEI' },
     { chave: 'reserva_caixa', valor: c.reserva_caixa, valor_texto: 'Reserva atual' },
     { chave: 'meta_lucro_mensal', valor: c.meta_lucro_mensal, valor_texto: 'Meta de lucro' },
+    { chave: 'data_abertura_loja', valor: 0, valor_texto: c.data_abertura_loja },
   ];
   for (const u of updates) {
     const { error } = await supabase
@@ -104,6 +107,8 @@ export async function lerConfigFinanceira(): Promise<LerResult> {
     } else if (chave === 'pro_labore_socio2') {
       dbConfig.pro_labore_socio2 = valor;
       if (texto) dbConfig.nome_socio2 = texto;
+    } else if (chave === 'data_abertura_loja') {
+      dbConfig.data_abertura_loja = texto || null;
     } else if (chave in CONFIG_DEFAULT) {
       (dbConfig as any)[chave] = valor;
     }

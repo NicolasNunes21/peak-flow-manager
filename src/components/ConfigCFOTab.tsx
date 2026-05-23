@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/format";
-import { Loader2, Save, Info, Briefcase, Shield, Building2, Target, HardDrive } from "lucide-react";
+import { Loader2, Save, Info, Briefcase, Shield, Building2, Target, HardDrive, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useConfigFinanceira, useSalvarConfigFinanceira, CONFIG_DEFAULT, type ConfigFinanceira } from "@/lib/configFinanceira";
 
@@ -102,6 +102,19 @@ export default function ConfigCFOTab() {
         </div>
         <p className="text-[11px] text-muted-foreground pt-1">
           Total: <span className="font-bold text-destructive">{formatCurrency(proLaboreTotal)}/mês</span>
+        </p>
+      </Section>
+
+      {/* Data de abertura */}
+      <Section icon={Calendar} title="Data de abertura da loja" hint="Quando a operação começou de fato. Usado pra limitar o histórico mensal — sem isso, o sistema usa a data da primeira venda (que pode estar errada se alguma venda foi cadastrada com data antiga).">
+        <input
+          type="date"
+          className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          value={form.data_abertura_loja || ''}
+          onChange={e => update('data_abertura_loja', e.target.value || null)}
+        />
+        <p className="text-[10px] text-muted-foreground mt-1">
+          {form.data_abertura_loja ? '' : 'Deixe vazio pra usar a primeira venda como referência.'}
         </p>
       </Section>
 

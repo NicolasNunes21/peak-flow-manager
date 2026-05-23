@@ -95,12 +95,17 @@ export default function CFOPeak() {
     config: cfg,
   }), [vendasMes, gastosMes, cfg]);
 
+  const dataAbertura = useMemo(() => {
+    if (cfg.data_abertura_loja) return new Date(cfg.data_abertura_loja + 'T12:00:00');
+    return primeiraVenda;
+  }, [cfg.data_abertura_loja, primeiraVenda]);
+
   const historico = useMemo(() => historicoMensal({
     vendas: (vendas6m || []) as any,
     gastos: (gastos || []) as any,
-    desdeInicio: primeiraVenda,
+    desdeInicio: dataAbertura,
     hoje: today,
-  }), [vendas6m, gastos, today, primeiraVenda]);
+  }), [vendas6m, gastos, today, dataAbertura]);
 
   const tendenciaReceita = useMemo(() => tendencia(historico.map(h => h.receita)), [historico]);
   const tendenciaEbitda = useMemo(() => tendencia(historico.map(h => h.ebitda)), [historico]);
@@ -305,7 +310,7 @@ export default function CFOPeak() {
           {Object.entries(dre.gastosPorCategoria).map(([cat, v]) => (
             <DRELinha key={cat} label={`(−) ${cat}`} valor={-v} neg small />
           ))}
-          <DRELinha label="(=) EBITDA" valor={dre.ebitda} subtotal positiveColor sub="Resultado operacional" />
+          <DRELinha label="(=) EBITDA" valor={dre.ebitda} subtotal positiveColor sub="Resultado da operação, antes de pró-labore e impostos" />
           <div className="h-2" />
           <DRELinha label="(−) Pró-labore" valor={-dre.proLabore} neg small />
           <DRELinha label="(−) DAS MEI" valor={-dre.impostos} neg small />
@@ -351,6 +356,9 @@ export default function CFOPeak() {
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-success inline-block" /> EBITDA (positivo)</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-destructive inline-block" /> EBITDA (negativo)</span>
         </div>
+        <p className="text-[10px] text-muted-foreground italic">
+          EBITDA é o resultado da operação (Faturamento − Custo dos produtos − Custos operacionais). Não inclui pró-labore nem impostos.
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>

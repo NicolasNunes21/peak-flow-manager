@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, margemColorClass } from "@/lib/format";
-import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -46,14 +46,25 @@ export default function Estoque() {
   const [csvData, setCsvData] = useState<any[]>([]);
   const [importResult, setImportResult] = useState<string | null>(null);
 
-  const [editQtd, setEditQtd] = useState(0);
-  const [editCusto, setEditCusto] = useState(0);
-
-  const [novoForm, setNovoForm] = useState({
-    nome: '', marca: '', categoria: '', sabor: '', qtd_atual: 0,
+  const emptyForm = {
+    sku: '', nome: '', marca: '', categoria: '', sabor: '', qtd_atual: 0,
     custo_unit: 0, preco_venda: 0, estoque_min: 5, pto_reposicao: 8,
     validade: '', classe_abc: 'B', fornecedor: '',
-  });
+  };
+  const [novoForm, setNovoForm] = useState(emptyForm);
+  const [editForm, setEditForm] = useState(emptyForm);
+
+  const openEditModal = (p: Produto) => {
+    setEditProduto(p);
+    setEditForm({
+      sku: p.sku ?? '', nome: p.nome,
+      marca: p.marca ?? '', categoria: p.categoria ?? '', sabor: p.sabor ?? '',
+      qtd_atual: p.qtd_atual ?? 0, custo_unit: p.custo_unit ?? 0,
+      preco_venda: p.preco_venda ?? 0, estoque_min: p.estoque_min ?? 5,
+      pto_reposicao: p.pto_reposicao ?? 8, validade: p.validade ?? '',
+      classe_abc: p.classe_abc ?? 'B', fornecedor: p.fornecedor ?? '',
+    });
+  };
 
   // Dynamic marcas and categorias
   const { data: marcasDb } = useQuery({
@@ -84,19 +95,64 @@ export default function Estoque() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Record<string, any> }) => {
-      await supabase.from("produtos").update(data.updates).eq("id", data.id);
+      const { error } = await supabase.from("produtos").update(data.updates).eq("id", data.id);
+      if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "✅ Estoque atualizado!" });
+      toast({ title: "✅ Produto atualizado!" });
       queryClient.invalidateQueries({ queryKey: ["produtos"] });
       setEditProduto(null);
       setEditingInline(null);
     },
+    onError: (err: any) => {
+      toast({ title: "Erro ao atualizar", description: err?.message, variant: "destructive" as const });
+    },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // Preserva histórico em vendas/compras (produto_nome é texto) antes de excluir
+      await supabase.from("vendas").update({ produto_id: null }).eq("produto_id", id);
+      await supabase.from("compras").update({ produto_id: null }).eq("produto_id", id);
+      const { error } = await supabase.from("produtos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "🗑️ Produto excluído" });
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+      setEditProduto(null);
+      setEditingInline(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao excluir", description: err?.message, variant: "destructive" as const });
+    },
+  });
+
+  // Cria nova marca/categoria via prompt — usado nos selects da edição inline
+  const handleInlineCreate = async (tableName: 'marcas' | 'categorias', onCreated: (nome: string) => void) => {
+    const label = tableName === 'marcas' ? 'marca' : 'categoria';
+    const nome = window.prompt(`Nome da nova ${label}:`)?.trim();
+    if (!nome) return;
+    const { error } = await supabase.from(tableName as any).insert({ nome } as any);
+    if (error) {
+      toast({ title: `Erro ao criar ${label}`, description: error.message, variant: "destructive" as const });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: [tableName] });
+    onCreated(nome);
+    toast({ title: `✅ ${label.charAt(0).toUpperCase() + label.slice(1)} "${nome}" criada` });
+  };
+
+  const confirmDelete = (p: Produto | { id: string; nome: string }) => {
+    if (window.confirm(`Excluir "${p.nome}"? Esta ação não pode ser desfeita. O histórico de vendas e compras é preservado.`)) {
+      deleteMutation.mutate(p.id);
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      await supabase.from("produtos").insert({
+      const { error } = await supabase.from("produtos").insert({
+        sku: novoForm.sku || null,
         nome: novoForm.nome, marca: novoForm.marca || null, categoria: novoForm.categoria || null,
         sabor: novoForm.sabor || null, qtd_atual: novoForm.qtd_atual,
         custo_unit: novoForm.custo_unit, preco_venda: novoForm.preco_venda,
@@ -104,14 +160,34 @@ export default function Estoque() {
         validade: novoForm.validade || null, classe_abc: novoForm.classe_abc,
         fornecedor: novoForm.fornecedor || null,
       });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "✅ Produto adicionado!" });
       queryClient.invalidateQueries({ queryKey: ["produtos"] });
       setShowNovo(false);
-      setNovoForm({ nome: '', marca: '', categoria: '', sabor: '', qtd_atual: 0, custo_unit: 0, preco_venda: 0, estoque_min: 5, pto_reposicao: 8, validade: '', classe_abc: 'B', fornecedor: '' });
+      setNovoForm(emptyForm);
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao adicionar", description: err?.message, variant: "destructive" as const });
     },
   });
+
+  const saveEditModal = () => {
+    if (!editProduto) return;
+    updateMutation.mutate({
+      id: editProduto.id,
+      updates: {
+        sku: editForm.sku || null, nome: editForm.nome,
+        marca: editForm.marca || null, categoria: editForm.categoria || null,
+        sabor: editForm.sabor || null, qtd_atual: editForm.qtd_atual,
+        custo_unit: editForm.custo_unit, preco_venda: editForm.preco_venda,
+        estoque_min: editForm.estoque_min, pto_reposicao: editForm.pto_reposicao,
+        validade: editForm.validade || null, classe_abc: editForm.classe_abc,
+        fornecedor: editForm.fornecedor || null,
+      },
+    });
+  };
 
   const filtered = useMemo(() => {
     let list = (produtos || []).filter(p => {
@@ -353,20 +429,46 @@ export default function Estoque() {
                 const isEditing = editingInline === p.id;
 
                 if (isEditing) {
+                  const currentMarca = inlineData.marca || '';
+                  const currentCat = inlineData.categoria || '';
                   return (
                     <tr key={p.id} className="border-b bg-accent/20">
                       <td className="px-2 py-1"><span className={`inline-block w-2 h-2 rounded-full ${status === 'repor' ? 'bg-destructive' : status === 'atencao' ? 'bg-warning' : 'bg-success'}`} /></td>
                       <td className="px-2 py-1"><input className="w-32 px-1 py-0.5 border rounded text-xs" value={inlineData.nome || ''} onChange={e => setInlineData(d => ({ ...d, nome: e.target.value }))} /></td>
                       <td className="px-2 py-1">
-                        <select className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.marca || ''} onChange={e => setInlineData(d => ({ ...d, marca: e.target.value }))}>
+                        <select
+                          className="w-24 px-1 py-0.5 border rounded text-xs"
+                          value={currentMarca}
+                          onChange={e => {
+                            if (e.target.value === '__new__') {
+                              handleInlineCreate('marcas', (nome) => setInlineData(d => ({ ...d, marca: nome })));
+                            } else {
+                              setInlineData(d => ({ ...d, marca: e.target.value }));
+                            }
+                          }}
+                        >
                           <option value="">—</option>
+                          {currentMarca && !marcasList.includes(currentMarca) && <option value={currentMarca}>{currentMarca}</option>}
                           {marcasList.map(m => <option key={m} value={m}>{m}</option>)}
+                          <option value="__new__">+ Nova marca</option>
                         </select>
                       </td>
                       <td className="px-2 py-1">
-                        <select className="w-20 px-1 py-0.5 border rounded text-xs" value={inlineData.categoria || ''} onChange={e => setInlineData(d => ({ ...d, categoria: e.target.value }))}>
+                        <select
+                          className="w-24 px-1 py-0.5 border rounded text-xs"
+                          value={currentCat}
+                          onChange={e => {
+                            if (e.target.value === '__new__') {
+                              handleInlineCreate('categorias', (nome) => setInlineData(d => ({ ...d, categoria: nome })));
+                            } else {
+                              setInlineData(d => ({ ...d, categoria: e.target.value }));
+                            }
+                          }}
+                        >
                           <option value="">—</option>
+                          {currentCat && !categoriasList.includes(currentCat) && <option value={currentCat}>{currentCat}</option>}
                           {categoriasList.map(c => <option key={c} value={c}>{c}</option>)}
+                          <option value="__new__">+ Nova categoria</option>
                         </select>
                       </td>
                       <td className="px-2 py-1"><input type="number" className="w-12 px-1 py-0.5 border rounded text-xs" value={inlineData.qtd_atual ?? 0} onChange={e => setInlineData(d => ({ ...d, qtd_atual: parseInt(e.target.value) || 0 }))} /></td>
@@ -375,9 +477,12 @@ export default function Estoque() {
                       <td className="px-2 py-1">—</td>
                       <td className="px-2 py-1"><input type="number" className="w-10 px-1 py-0.5 border rounded text-xs" value={inlineData.estoque_min ?? 0} onChange={e => setInlineData(d => ({ ...d, estoque_min: parseInt(e.target.value) || 0 }))} /></td>
                       <td className="px-2 py-1"><input type="date" className="w-24 px-1 py-0.5 border rounded text-xs" value={inlineData.validade || ''} onChange={e => setInlineData(d => ({ ...d, validade: e.target.value }))} /></td>
-                      <td className="px-2 py-1 flex gap-1">
-                        <button onClick={() => updateMutation.mutate({ id: p.id, updates: inlineData })} className="p-1 rounded bg-success text-success-foreground"><Check size={12} /></button>
-                        <button onClick={() => setEditingInline(null)} className="p-1 rounded bg-muted"><X size={12} /></button>
+                      <td className="px-2 py-1">
+                        <div className="flex gap-1">
+                          <button onClick={() => updateMutation.mutate({ id: p.id, updates: inlineData })} disabled={updateMutation.isPending} className="p-1 rounded bg-success text-success-foreground disabled:opacity-50" title="Salvar"><Check size={12} /></button>
+                          <button onClick={() => setEditingInline(null)} className="p-1 rounded bg-muted" title="Cancelar"><X size={12} /></button>
+                          <button onClick={() => confirmDelete(p)} disabled={deleteMutation.isPending} className="p-1 rounded bg-destructive text-destructive-foreground disabled:opacity-50" title="Excluir"><Trash2 size={12} /></button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -434,23 +539,59 @@ export default function Estoque() {
                     {diasVal !== null && diasVal < 30 && <span className="text-warning font-medium">Vence em {diasVal}d</span>}
                   </div>
                 </div>
-                <button onClick={() => { setEditProduto(p); setEditQtd(p.qtd_atual || 0); setEditCusto(p.custo_unit || 0); }} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-muted active:scale-95">
-                  <Pencil size={14} />
-                </button>
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => openEditModal(p)} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-muted active:scale-95" title="Editar">
+                    <Pencil size={14} />
+                  </button>
+                  <button onClick={() => confirmDelete(p)} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive active:scale-95" title="Excluir">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal (list view / edição completa) */}
       {editProduto && (
-        <Modal onClose={() => setEditProduto(null)} title="Atualizar estoque">
-          <p className="text-sm text-muted-foreground mb-4">{editProduto.nome}</p>
+        <Modal onClose={() => setEditProduto(null)} title="Editar produto">
           <div className="space-y-3">
-            <Field label="Nova quantidade" type="number" value={editQtd} onChange={v => setEditQtd(parseInt(v) || 0)} />
-            <Field label="Custo unitário (R$)" type="number" value={editCusto} onChange={v => setEditCusto(parseFloat(v) || 0)} step="0.01" />
-            <button onClick={() => updateMutation.mutate({ id: editProduto.id, updates: { qtd_atual: editQtd, custo_unit: editCusto } })} disabled={updateMutation.isPending} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium active:scale-[0.98] disabled:opacity-50">Atualizar</button>
+            <Field label="SKU" value={editForm.sku} onChange={v => setEditForm(f => ({ ...f, sku: v }))} />
+            <Field label="Nome *" value={editForm.nome} onChange={v => setEditForm(f => ({ ...f, nome: v }))} />
+            <DynamicSelectField
+              label="Marca"
+              value={editForm.marca}
+              options={marcasList}
+              onChange={v => setEditForm(f => ({ ...f, marca: v }))}
+              tableName="marcas"
+              queryClient={queryClient}
+              toast={toast}
+            />
+            <DynamicSelectField
+              label="Categoria"
+              value={editForm.categoria}
+              options={categoriasList}
+              onChange={v => setEditForm(f => ({ ...f, categoria: v }))}
+              tableName="categorias"
+              queryClient={queryClient}
+              toast={toast}
+            />
+            <Field label="Sabor" value={editForm.sabor} onChange={v => setEditForm(f => ({ ...f, sabor: v }))} />
+            <Field label="Qtd atual" type="number" value={editForm.qtd_atual} onChange={v => setEditForm(f => ({ ...f, qtd_atual: parseInt(v) || 0 }))} />
+            <Field label="Custo unit. (R$)" type="number" value={editForm.custo_unit} onChange={v => setEditForm(f => ({ ...f, custo_unit: parseFloat(v) || 0 }))} step="0.01" />
+            <Field label="Preço venda (R$)" type="number" value={editForm.preco_venda} onChange={v => setEditForm(f => ({ ...f, preco_venda: parseFloat(v) || 0 }))} step="0.01" />
+            <Field label="Estoque mínimo" type="number" value={editForm.estoque_min} onChange={v => setEditForm(f => ({ ...f, estoque_min: parseInt(v) || 0 }))} />
+            <Field label="Ponto reposição" type="number" value={editForm.pto_reposicao} onChange={v => setEditForm(f => ({ ...f, pto_reposicao: parseInt(v) || 0 }))} />
+            <Field label="Validade" type="date" value={editForm.validade} onChange={v => setEditForm(f => ({ ...f, validade: v }))} />
+            <SelectField label="Classe ABC" value={editForm.classe_abc} options={CLASSES} onChange={v => setEditForm(f => ({ ...f, classe_abc: v }))} />
+            <Field label="Fornecedor" value={editForm.fornecedor} onChange={v => setEditForm(f => ({ ...f, fornecedor: v }))} />
+            <div className="flex gap-2 pt-2">
+              <button onClick={saveEditModal} disabled={!editForm.nome || updateMutation.isPending} className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-medium active:scale-[0.98] disabled:opacity-50">Salvar alterações</button>
+              <button onClick={() => confirmDelete(editProduto)} disabled={deleteMutation.isPending} className="py-3 px-4 rounded-xl bg-destructive text-destructive-foreground font-medium active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5" title="Excluir produto">
+                <Trash2 size={16} /> Excluir
+              </button>
+            </div>
           </div>
         </Modal>
       )}
@@ -459,6 +600,7 @@ export default function Estoque() {
       {showNovo && (
         <Modal onClose={() => setShowNovo(false)} title="Novo produto">
           <div className="space-y-3">
+            <Field label="SKU" value={novoForm.sku} onChange={v => setNovoForm(f => ({ ...f, sku: v }))} />
             <Field label="Nome *" value={novoForm.nome} onChange={v => setNovoForm(f => ({ ...f, nome: v }))} />
             <DynamicSelectField
               label="Marca *"
@@ -611,6 +753,7 @@ function DynamicSelectField({ label, value, options, onChange, tableName, queryC
         }}
       >
         <option value="">Selecione...</option>
+        {value && !options.includes(value) && <option value={value}>{value}</option>}
         {options.map(o => <option key={o} value={o}>{o}</option>)}
         <option value="__new__">+ Adicionar {label.replace(' *', '').toLowerCase()}</option>
       </select>

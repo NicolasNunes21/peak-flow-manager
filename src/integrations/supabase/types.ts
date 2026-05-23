@@ -147,21 +147,30 @@ export type Database = {
       }
       custos_fixos: {
         Row: {
+          categoria: string
           created_at: string | null
+          data: string | null
+          descricao: string | null
           id: string
           nome: string
           recorrencia: string
           valor: number
         }
         Insert: {
+          categoria?: string
           created_at?: string | null
+          data?: string | null
+          descricao?: string | null
           id?: string
           nome: string
           recorrencia?: string
           valor?: number
         }
         Update: {
+          categoria?: string
           created_at?: string | null
+          data?: string | null
+          descricao?: string | null
           id?: string
           nome?: string
           recorrencia?: string

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, margemColorClass } from "@/lib/format";
-import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2, LayoutGrid, ChevronDown, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -30,7 +30,8 @@ export default function Estoque() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState("todos");
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<'table' | 'list'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'list' | 'grouped'>('table');
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const [editProduto, setEditProduto] = useState<Produto | null>(null);
   const [showNovo, setShowNovo] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
@@ -313,9 +314,17 @@ export default function Estoque() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-xl font-bold text-secondary">Estoque</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => setViewMode(v => v === 'table' ? 'list' : 'table')} className="p-2 rounded-lg border hover:bg-muted" title="Alternar modo">
-            {viewMode === 'table' ? <List size={18} /> : <Table2 size={18} />}
-          </button>
+          <div className="flex rounded-lg border overflow-hidden">
+            <button onClick={() => setViewMode('table')} className={`p-2 ${viewMode === 'table' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Tabela">
+              <Table2 size={18} />
+            </button>
+            <button onClick={() => setViewMode('list')} className={`p-2 border-l ${viewMode === 'list' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Lista">
+              <List size={18} />
+            </button>
+            <button onClick={() => setViewMode('grouped')} className={`p-2 border-l ${viewMode === 'grouped' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Agrupado por categoria">
+              <LayoutGrid size={18} />
+            </button>
+          </div>
           <button onClick={() => setShowFilter(!showFilter)} className="p-2 rounded-lg border hover:bg-muted" title="Filtrar">
             <Filter size={18} />
           </button>
@@ -519,7 +528,7 @@ export default function Estoque() {
             <span>Margem média: {formatPercent(margemMedia)}</span>
           </div>
         </div>
-      ) : (
+      ) : viewMode === 'list' ? (
         /* List view */
         <div className="space-y-2">
           {filtered.map(p => {
@@ -551,6 +560,78 @@ export default function Estoque() {
             );
           })}
         </div>
+      ) : (
+        /* Grouped by categoria view */
+        (() => {
+          const groups: Record<string, typeof filtered> = {};
+          filtered.forEach(p => {
+            const cat = p.categoria || 'Sem categoria';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(p);
+          });
+          const orderedCats = Object.keys(groups).sort((a, b) => {
+            if (a === 'Sem categoria') return 1;
+            if (b === 'Sem categoria') return -1;
+            return a.localeCompare(b);
+          });
+          if (orderedCats.length === 0) {
+            return <div className="bg-card rounded-xl p-6 shadow-sm text-center text-sm text-muted-foreground">Nenhum produto encontrado.</div>;
+          }
+          return (
+            <div className="space-y-3">
+              {orderedCats.map(cat => {
+                const items = groups[cat];
+                const totalUn = items.reduce((s, p) => s + (p.qtd_atual || 0), 0);
+                const totalValor = items.reduce((s, p) => s + (p.qtd_atual || 0) * (p.custo_unit || 0), 0);
+                const repor = items.filter(p => getStatus(p) === 'repor').length;
+                const isOpen = expandedCats[cat] ?? true;
+                return (
+                  <div key={cat} className="bg-card rounded-xl shadow-sm overflow-hidden">
+                    <button
+                      onClick={() => setExpandedCats(s => ({ ...s, [cat]: !isOpen }))}
+                      className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isOpen ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronRight size={16} className="text-muted-foreground" />}
+                        <h3 className="text-sm font-semibold text-secondary">{cat}</h3>
+                        <span className="text-xs text-muted-foreground">{items.length} SKU · {totalUn} un</span>
+                        {repor > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground font-bold">{repor} repor</span>}
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">{formatCurrency(totalValor)}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t divide-y">
+                        {items.sort((a, b) => a.nome.localeCompare(b.nome)).map(p => {
+                          const status = getStatus(p);
+                          const margem = (p.preco_venda && p.custo_unit && p.preco_venda > 0) ? ((p.preco_venda - p.custo_unit) / p.preco_venda) * 100 : 0;
+                          const diasVal = p.validade ? Math.floor((new Date(p.validade).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+                          return (
+                            <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${status === 'repor' ? 'bg-destructive' : status === 'atencao' ? 'bg-warning' : 'bg-success'}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{p.nome}</p>
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                                  {p.marca && <span>{p.marca}</span>}
+                                  {p.sabor && <span>{p.sabor}</span>}
+                                  <span className={status === 'repor' ? 'text-destructive font-medium' : status === 'atencao' ? 'text-warning font-medium' : ''}>{p.qtd_atual} un</span>
+                                  <span>{formatCurrency(p.preco_venda || 0)}</span>
+                                  <span className={margemColorClass(margem)}>{formatPercent(margem)}</span>
+                                  {diasVal !== null && diasVal < 60 && <span className="text-warning font-medium">Vence em {diasVal}d</span>}
+                                </div>
+                              </div>
+                              <button onClick={() => openEditModal(p)} className="p-1.5 rounded hover:bg-muted" title="Editar"><Pencil size={13} /></button>
+                              <button onClick={() => confirmDelete(p)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Excluir"><Trash2 size={13} /></button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()
       )}
 
       {/* Edit Modal (list view / edição completa) */}

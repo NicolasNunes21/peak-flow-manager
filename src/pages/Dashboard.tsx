@@ -9,6 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { gerarInsights, type Insight } from "@/lib/insights";
 import { useConfigFinanceira } from "@/lib/configFinanceira";
+import EditVendaModal from "@/components/EditVendaModal";
+import type { VendaRow } from "@/lib/vendaActions";
+import { Pencil } from "lucide-react";
 
 export default function Dashboard() {
   const today = new Date();
@@ -17,6 +20,7 @@ export default function Dashboard() {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
   const [openSheet, setOpenSheet] = useState<string | null>(null);
+  const [editVenda, setEditVenda] = useState<VendaRow | null>(null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [selectedChartDay, setSelectedChartDay] = useState<number | null>(null);
   const [periodo, setPeriodo] = useState<'semana' | 'mes'>('semana');
@@ -252,7 +256,10 @@ export default function Dashboard() {
     gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + Number(c.valor);
   });
   const totalGastosMes = Object.values(gastosPorCategoria).reduce((s, v) => s + v, 0);
-  const sobraReal = fatMes - custosMes - totalGastosMes;
+  const descontosMes = allMes.reduce((s, v: any) => s + Number(v.desconto_rs || 0), 0);
+  const brindesMes = allMes.filter((v: any) => v.brinde && String(v.brinde).trim()).length;
+  const fatLiquidoMes = fatMes - descontosMes;
+  const sobraReal = fatLiquidoMes - custosMes - totalGastosMes;
   const proLabore = (configFin?.pro_labore_socio1 || 0) + (configFin?.pro_labore_socio2 || 0);
   const dasMei = configFin?.das_mei_mensal ?? 80.90; // default DAS comércio 2026, mesmo sem tabela
   const resultadoLiquido = sobraReal - proLabore - dasMei;
@@ -550,6 +557,12 @@ export default function Dashboard() {
               <span className="text-muted-foreground">Faturamento</span>
               <span className="font-medium">{formatCurrency(fatMes)}</span>
             </div>
+            {descontosMes > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">− Descontos concedidos</span>
+                <span className="font-medium text-destructive">−{formatCurrency(descontosMes)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">− Custo dos produtos (CMV)</span>
               <span className="font-medium text-destructive">−{formatCurrency(custosMes)}</span>
@@ -557,7 +570,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between pt-1.5 border-t">
               <span className="font-medium">= Lucro bruto</span>
               <span className={`font-bold ${margemMediaMes >= 30 ? 'text-success' : margemMediaMes >= 20 ? 'text-warning' : 'text-destructive'}`}>
-                {formatCurrency(fatMes - custosMes)} <span className="text-xs font-normal">({formatPercent(margemMediaMes)})</span>
+                {formatCurrency(fatLiquidoMes - custosMes)} <span className="text-xs font-normal">({formatPercent(fatLiquidoMes > 0 ? ((fatLiquidoMes - custosMes) / fatLiquidoMes) * 100 : 0)})</span>
               </span>
             </div>
             {Object.entries(gastosPorCategoria).map(([cat, v]) => (
@@ -591,6 +604,13 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
+          {(descontosMes > 0 || brindesMes > 0) && (
+            <p className="text-[10px] text-muted-foreground pt-1">
+              💸 Este mês: {descontosMes > 0 && `${formatCurrency(descontosMes)} em descontos`}
+              {descontosMes > 0 && brindesMes > 0 && ' · '}
+              {brindesMes > 0 && `${brindesMes} brinde${brindesMes !== 1 ? 's' : ''} dado${brindesMes !== 1 ? 's' : ''}`}
+            </p>
+          )}
           <p className="text-[10px] text-muted-foreground pt-1">
             {proLabore === 0 ? (
               <>Pró-labore não cadastrado — o lucro líquido fica fictício. <Link to="/configuracoes" className="text-primary underline">Configurar</Link> para ver o número real.</>
@@ -641,12 +661,15 @@ export default function Dashboard() {
             {vendasHoje.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma venda registrada hoje.</p>}
             {vendasHoje.map(v => (
               <div key={v.id} className="border-b pb-3 space-y-1">
-                <div className="flex justify-between items-start">
-                  <div>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{v.produto_nome}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(v.created_at!)} · {v.quantidade}× {formatCurrency(v.preco_venda)}</p>
                   </div>
                   <p className="text-sm font-bold">{formatCurrency(v.preco_venda * v.quantidade)}</p>
+                  <button onClick={() => setEditVenda(v as any)} className="p-1 rounded hover:bg-muted" title="Editar venda">
+                    <Pencil size={12} className="text-muted-foreground" />
+                  </button>
                 </div>
                 <div className="flex gap-2">
                   {v.forma_pgto && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{v.forma_pgto}</span>}
@@ -684,9 +707,12 @@ export default function Dashboard() {
                 {expandedDay === dg.dateStr && dg.vendas.length > 0 && (
                   <div className="border-t px-3 pb-3 space-y-2 bg-muted/20">
                     {dg.vendas.map(v => (
-                      <div key={v.id} className="flex justify-between text-xs pt-2">
-                        <span>{formatTime(v.created_at!)} · {v.produto_nome}</span>
+                      <div key={v.id} className="flex items-center gap-2 text-xs pt-2">
+                        <span className="flex-1 min-w-0 truncate">{formatTime(v.created_at!)} · {v.produto_nome}</span>
                         <span className="font-medium">{formatCurrency(v.preco_venda * v.quantidade)}</span>
+                        <button onClick={() => setEditVenda(v as any)} className="p-1 rounded hover:bg-card" title="Editar">
+                          <Pencil size={11} className="text-muted-foreground" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -798,12 +824,15 @@ export default function Dashboard() {
                 <p className="text-xs font-medium text-muted-foreground">Vendas do dia</p>
                 {chartDayData.vendas.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma venda neste dia.</p>}
                 {chartDayData.vendas.map(v => (
-                  <div key={v.id} className="flex justify-between items-start p-2 border-b text-xs">
-                    <div>
-                      <p className="font-medium">{v.produto_nome}</p>
+                  <div key={v.id} className="flex items-center gap-2 p-2 border-b text-xs">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{v.produto_nome}</p>
                       <p className="text-muted-foreground">{formatTime(v.created_at!)} · {v.quantidade}× {formatCurrency(v.preco_venda)}</p>
                     </div>
                     <p className="font-bold">{formatCurrency(v.preco_venda * v.quantidade)}</p>
+                    <button onClick={() => setEditVenda(v as any)} className="p-1 rounded hover:bg-muted" title="Editar">
+                      <Pencil size={11} className="text-muted-foreground" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1071,6 +1100,8 @@ export default function Dashboard() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {editVenda && <EditVendaModal venda={editVenda} onClose={() => setEditVenda(null)} />}
     </div>
   );
 }

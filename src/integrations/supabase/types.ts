@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      ajustes_estoque: {
+        Row: {
+          created_at: string | null
+          diferenca: number
+          id: string
+          motivo: string
+          observacao: string | null
+          produto_id: string | null
+          produto_nome: string | null
+          qtd_anterior: number
+          qtd_nova: number
+        }
+        Insert: {
+          created_at?: string | null
+          diferenca: number
+          id?: string
+          motivo: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          qtd_anterior: number
+          qtd_nova: number
+        }
+        Update: {
+          created_at?: string | null
+          diferenca?: number
+          id?: string
+          motivo?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          qtd_anterior?: number
+          qtd_nova?: number
+        }
+        Relationships: []
+      }
       canais: {
         Row: {
           ativo: boolean
@@ -300,11 +336,13 @@ export type Database = {
       }
       vendas: {
         Row: {
+          brinde: string | null
           canal: string | null
           cliente_id: string | null
           cliente_nome: string | null
           created_at: string | null
           custo_unit: number
+          desconto_rs: number | null
           forma_pgto: string | null
           id: string
           margem_rs: number | null
@@ -316,11 +354,13 @@ export type Database = {
           vendedor: string | null
         }
         Insert: {
+          brinde?: string | null
           canal?: string | null
           cliente_id?: string | null
           cliente_nome?: string | null
           created_at?: string | null
           custo_unit: number
+          desconto_rs?: number | null
           forma_pgto?: string | null
           id?: string
           margem_rs?: number | null
@@ -332,11 +372,13 @@ export type Database = {
           vendedor?: string | null
         }
         Update: {
+          brinde?: string | null
           canal?: string | null
           cliente_id?: string | null
           cliente_nome?: string | null
           created_at?: string | null
           custo_unit?: number
+          desconto_rs?: number | null
           forma_pgto?: string | null
           id?: string
           margem_rs?: number | null

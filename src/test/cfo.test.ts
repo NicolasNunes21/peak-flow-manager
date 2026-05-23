@@ -259,6 +259,8 @@ function estadoBase(overrides: Partial<EstadoFinanceiro> = {}): EstadoFinanceiro
   return {
     dre: {
       receitaBruta: 2000,
+      descontos: 0,
+      receitaLiquida: 2000,
       cmv: 1200,
       lucroBruto: 800,
       margemBrutaPct: 40,
@@ -297,6 +299,8 @@ describe("gerarRecomendacoes", () => {
     const recs = gerarRecomendacoes(estadoBase({
       dre: {
         receitaBruta: 2300,
+        descontos: 0,
+        receitaLiquida: 2300,
         cmv: 1500,
         lucroBruto: 800,
         margemBrutaPct: 33,

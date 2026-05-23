@@ -7,6 +7,8 @@ export type Venda = {
   quantidade: number;
   preco_venda: number;
   custo_unit: number;
+  desconto_rs?: number | null;
+  brinde?: string | null;
   canal: string | null;
   forma_pgto: string | null;
   created_at: string | null;
@@ -39,6 +41,8 @@ export type ConfigFinanceira = {
 // ============================================================
 export type DRE = {
   receitaBruta: number;
+  descontos: number;
+  receitaLiquida: number;
   cmv: number;
   lucroBruto: number;
   margemBrutaPct: number;
@@ -58,9 +62,11 @@ export function calcularDRE(opts: {
 }): DRE {
   const { vendasMes, gastosMes, config } = opts;
   const receitaBruta = vendasMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+  const descontos = vendasMes.reduce((s, v) => s + Number(v.desconto_rs || 0), 0);
+  const receitaLiquida = receitaBruta - descontos;
   const cmv = vendasMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
-  const lucroBruto = receitaBruta - cmv;
-  const margemBrutaPct = receitaBruta > 0 ? (lucroBruto / receitaBruta) * 100 : 0;
+  const lucroBruto = receitaLiquida - cmv;
+  const margemBrutaPct = receitaLiquida > 0 ? (lucroBruto / receitaLiquida) * 100 : 0;
 
   const gastosPorCategoria: Record<string, number> = {};
   gastosMes.forEach(g => {
@@ -75,8 +81,11 @@ export function calcularDRE(opts: {
   const resultadoLiquido = ebitda - proLabore - impostos;
   const resultadoLiquidoPct = receitaBruta > 0 ? (resultadoLiquido / receitaBruta) * 100 : 0;
 
+  const resultadoLiquidoPctBase = receitaLiquida > 0 ? (lucroBruto - totalDespesasOp - proLabore - impostos) / receitaLiquida * 100 : 0;
   return {
     receitaBruta,
+    descontos,
+    receitaLiquida,
     cmv,
     lucroBruto,
     margemBrutaPct,
@@ -86,7 +95,7 @@ export function calcularDRE(opts: {
     proLabore,
     impostos,
     resultadoLiquido,
-    resultadoLiquidoPct,
+    resultadoLiquidoPct: resultadoLiquidoPctBase,
   };
 }
 

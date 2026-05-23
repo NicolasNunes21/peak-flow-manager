@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { Plus, Trash2, Pencil, Check, X, Loader2, Briefcase, Receipt, Radio } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Loader2, Briefcase, Receipt, Radio, Settings } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import ConfigCFOTab from "@/components/ConfigCFOTab";
 import ConfigCanaisTab from "@/components/ConfigCanaisTab";
@@ -177,10 +178,11 @@ export default function Configuracoes() {
 
   return (
     <div className="animate-fade-in space-y-5 max-w-2xl">
-      <div>
-        <h1 className="text-xl font-bold text-secondary">Configurações</h1>
-        <p className="text-sm text-muted-foreground">Gerencie gastos, dados financeiros (CFO Peak) e canais de venda.</p>
-      </div>
+      <PageHeader
+        title="Configurações"
+        subtitle="Gastos, dados financeiros (CFO Peak) e canais de venda"
+        icon={<Settings size={20} strokeWidth={2.5} />}
+      />
 
       {/* Top Tabs */}
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 sticky top-0 z-10">

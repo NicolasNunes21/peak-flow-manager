@@ -3,11 +3,12 @@ import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, margemColorClass } from "@/lib/format";
-import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2, LayoutGrid, ChevronDown, ChevronRight, Sliders } from "lucide-react";
+import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2, LayoutGrid, ChevronDown, ChevronRight, Sliders, Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import AjustarEstoqueModal from "@/components/AjustarEstoqueModal";
+import { PageHeader } from "@/components/PageHeader";
 
 type Produto = {
   id: string; sku: string | null; nome: string; marca: string | null; categoria: string | null;
@@ -311,43 +312,43 @@ export default function Estoque() {
   if (isLoading) return <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>;
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h1 className="text-xl font-bold text-secondary">Estoque</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border overflow-hidden">
-            <button onClick={() => setViewMode('table')} className={`p-2 ${viewMode === 'table' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Tabela">
-              <Table2 size={18} />
+    <div className="space-y-5 animate-fade-in">
+      <PageHeader
+        title="Estoque"
+        subtitle={`${(produtos || []).length} SKUs · ${formatCurrency(valorEstoque)} em estoque`}
+        icon={<Package size={20} strokeWidth={2.5} />}
+        iconGradient
+        actions={
+          <>
+            <div className="flex rounded-xl border bg-card overflow-hidden">
+              <button onClick={() => setViewMode('table')} className={`p-2 transition-colors ${viewMode === 'table' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Tabela">
+                <Table2 size={17} />
+              </button>
+              <button onClick={() => setViewMode('list')} className={`p-2 border-l transition-colors ${viewMode === 'list' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Lista">
+                <List size={17} />
+              </button>
+              <button onClick={() => setViewMode('grouped')} className={`p-2 border-l transition-colors ${viewMode === 'grouped' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Agrupado por categoria">
+                <LayoutGrid size={17} />
+              </button>
+            </div>
+            <button onClick={() => setShowFilter(!showFilter)} className="p-2 rounded-xl border bg-card hover:bg-muted pressable" title="Filtrar">
+              <Filter size={17} />
             </button>
-            <button onClick={() => setViewMode('list')} className={`p-2 border-l ${viewMode === 'list' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Lista">
-              <List size={18} />
+            <button onClick={exportCsv} className="p-2 rounded-xl border bg-card hover:bg-muted pressable" title="Exportar CSV">
+              <Download size={17} />
             </button>
-            <button onClick={() => setViewMode('grouped')} className={`p-2 border-l ${viewMode === 'grouped' ? 'bg-secondary text-secondary-foreground' : 'hover:bg-muted'}`} title="Agrupado por categoria">
-              <LayoutGrid size={18} />
+            <button onClick={() => setShowImport(true)} className="p-2 rounded-xl border bg-card hover:bg-muted pressable" title="Importar CSV">
+              <Upload size={17} />
             </button>
-          </div>
-          <button onClick={() => setShowFilter(!showFilter)} className="p-2 rounded-lg border hover:bg-muted" title="Filtrar">
-            <Filter size={18} />
-          </button>
-          <button onClick={exportCsv} className="p-2 rounded-lg border hover:bg-muted" title="Exportar CSV">
-            <Download size={18} />
-          </button>
-          <button onClick={() => setShowImport(true)} className="p-2 rounded-lg border hover:bg-muted" title="Importar CSV">
-            <Upload size={18} />
-          </button>
-          <button onClick={() => setShowNovo(true)} className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center active:scale-95">
-            <Plus size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Summary */}
-      <div className="bg-card rounded-xl p-3 shadow-sm text-sm">
-        <span className="font-medium">{(produtos || []).length} SKUs</span>
-        <span className="text-muted-foreground"> · Valor: </span>
-        <span className="font-semibold">{formatCurrency(valorEstoque)}</span>
-      </div>
+            <button
+              onClick={() => setShowNovo(true)}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-[hsl(192_85%_32%)] text-primary-foreground flex items-center justify-center shadow-[0_4px_12px_-2px_hsl(192_83%_38%/0.5)] pressable"
+            >
+              <Plus size={20} strokeWidth={2.5} />
+            </button>
+          </>
+        }
+      />
 
       {/* Filter panel */}
       {showFilter && (

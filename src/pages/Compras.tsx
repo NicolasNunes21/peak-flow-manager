@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Search, Plus, Loader2, Package, Truck, ChevronDown, ChevronRight, X } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 
 const DEFAULT_FORNECEDORES = ["NewShape", "RamboFit", "Mercado Livre", "Site oficial da marca"];
@@ -234,17 +235,12 @@ export default function Compras() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Header + summary */}
-      <div className="bg-card rounded-xl p-4 shadow-sm">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h1 className="text-xl font-bold text-secondary">Registrar Compra</h1>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-bold text-destructive">{formatCurrency(totalMes)}</span>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">{numComprasMes} compra{numComprasMes !== 1 ? 's' : ''} no mês</span>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Registrar Compra"
+        subtitle={`Mês: ${formatCurrency(totalMes)} · ${numComprasMes} compra${numComprasMes !== 1 ? 's' : ''}`}
+        icon={<Truck size={20} strokeWidth={2.5} />}
+        iconGradient
+      />
 
       <div className="space-y-5 max-w-lg mx-auto">
         {/* Low stock quick picks */}

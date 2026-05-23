@@ -279,142 +279,17 @@ export default function Dashboard() {
   const chartDayData = selectedChartDay !== null ? activeChartData[selectedChartDay] ?? null : null;
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-lg font-bold text-secondary">{getSaudacao()}</h1>
-        <p className="text-sm text-muted-foreground">{getDataHojeCompleta()}</p>
-      </div>
-
-      {/* Period toggle */}
-      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
-        <button onClick={() => setPeriodo('semana')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${periodo === 'semana' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>7 dias</button>
-        <button onClick={() => setPeriodo('mes')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${periodo === 'mes' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Mês</button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <button onClick={() => setOpenSheet('hoje')} className="rounded-xl p-4 shadow-sm space-y-2 bg-primary text-primary-foreground text-left transition-transform active:scale-[0.97]">
-          <div className="flex items-center gap-2 text-primary-foreground/70"><TrendingUp size={16} /><span className="text-xs font-medium">Faturamento hoje</span></div>
-          <p className="text-xl font-bold">{formatCurrency(fatHoje)}</p>
-          <p className="text-[10px] text-primary-foreground/60">{vendasHoje.length} venda{vendasHoje.length !== 1 ? 's' : ''}</p>
-        </button>
-
-        <button onClick={() => setOpenSheet('semana')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
-          <div className="flex items-center gap-2 text-muted-foreground"><Target size={16} /><span className="text-xs font-medium">{periodo === 'semana' ? 'Fat. semana' : 'Fat. mês'}</span></div>
-          <p className="text-lg font-bold">{formatCurrency(fatPeriodo)}</p>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${Math.min((fatPeriodo / metaPeriodo) * 100, 100)}%` }} />
-          </div>
-          <p className="text-[10px] text-muted-foreground">{formatCurrency(fatPeriodo)} / {formatCurrency(metaPeriodo)}</p>
-        </button>
-
-        <button onClick={() => setOpenSheet('margem')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
-          <div className="flex items-center gap-2 text-muted-foreground"><Percent size={16} /><span className="text-xs font-medium">Margem bruta</span></div>
-          <p className={`text-xl font-bold ${margemColorClass(margemPctPeriodo)}`}>{hasData ? formatPercent(margemPctPeriodo) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">{hasData ? `${formatCurrency(fatPeriodo - custoPeriodo)} de lucro bruto` : 'Sem dados'}</p>
-        </button>
-
-        <button onClick={() => setOpenSheet('ticket')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
-          <div className="flex items-center gap-2 text-muted-foreground"><Receipt size={16} /><span className="text-xs font-medium">Ticket médio</span></div>
-          <p className="text-xl font-bold">{hasData ? formatCurrency(ticketMedio) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">{numVendasMes} venda{numVendasMes !== 1 ? 's' : ''} no mês</p>
-        </button>
-      </div>
-
-      {/* Recontatos */}
-      {(clientesRecontato || []).length > 0 && (
-        <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
-          <h3 className="text-sm font-semibold text-secondary">Recontatos pendentes</h3>
-          <div className="space-y-2">
-            {clientesRecontato!.map(c => {
-              const dias = diasAtras(c.data_ultima_compra || c.created_at || '');
-              const script = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
-              const whatsNum = (c.whatsapp || '').replace(/\D/g, '');
-              const whatsNumFull = whatsNum.startsWith('55') ? whatsNum : `55${whatsNum}`;
-              const whatsUrl = `https://wa.me/${whatsNumFull}?text=${encodeURIComponent(script)}`;
-              return (
-                <div key={c.id} className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{c.nome}</p>
-                    <p className="text-xs text-muted-foreground">há {dias} dias sem compra</p>
-                  </div>
-                  <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 w-9 h-9 rounded-full bg-success flex items-center justify-center transition-transform active:scale-95">
-                    <MessageCircle size={16} className="text-success-foreground" />
-                  </a>
-                </div>
-              );
-            })}
-          </div>
+    <div className="space-y-5 animate-fade-in">
+      {/* Hero — saudação + toggle de período inline */}
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{getSaudacao()}</h1>
+          <p className="text-sm text-muted-foreground capitalize">{getDataHojeCompleta()}</p>
         </div>
-      )}
-
-      {/* Chart — clickable bars */}
-      <div className="bg-card rounded-xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-secondary">Faturamento — {periodo === 'semana' ? 'últimos 7 dias' : 'mês atual'}</h3>
-          <BarChart3 size={16} className="text-muted-foreground" />
+        <div className="flex items-center gap-1 bg-muted/60 rounded-full p-0.5 backdrop-blur-sm">
+          <button onClick={() => setPeriodo('semana')} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${periodo === 'semana' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>7 dias</button>
+          <button onClick={() => setPeriodo('mes')} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${periodo === 'mes' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Mês</button>
         </div>
-        {hasData ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={activeChartData} onClick={(e) => {
-              if (e && e.activeTooltipIndex !== undefined) {
-                setSelectedChartDay(e.activeTooltipIndex);
-                setOpenSheet('chartDay');
-              }
-            }}>
-              <XAxis dataKey="dia" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} width={55} />
-              <Tooltip formatter={(v: number) => [formatCurrency(v), 'Faturamento']} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} cursor={{ fill: 'hsl(var(--muted))' }} />
-              <Bar dataKey="valor" radius={[6, 6, 0, 0]} className="cursor-pointer">
-                {chartData.map((_, i) => (
-                  <Cell key={i} fill="hsl(193, 100%, 42%)" />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-[200px] flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">Registre vendas para ver o gráfico</p>
-          </div>
-        )}
-        <p className="text-[10px] text-muted-foreground mt-2 text-center">Clique em uma barra para ver detalhes do dia</p>
-      </div>
-
-      {/* Top 5 produtos do mês */}
-      <div className="bg-card rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-secondary mb-3">Top produtos do mês</h3>
-        {top5.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-muted-foreground border-b">
-                  <th className="text-left py-2 pr-2">#</th>
-                  <th className="text-left py-2 pr-2">Produto</th>
-                  <th className="text-right py-2 pr-2">Qtd</th>
-                  <th className="text-right py-2 pr-2">Fat. R$</th>
-                  <th className="text-right py-2">Margem %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {top5.map((p, i) => {
-                  const m = p.total > 0 ? ((p.total - p.custo) / p.total) * 100 : 0;
-                  return (
-                    <tr key={i} className={i % 2 === 1 ? 'bg-muted/30' : ''}>
-                      <td className="py-2 pr-2 font-bold text-secondary">{i + 1}º</td>
-                      <td className="py-2 pr-2 font-medium truncate max-w-[150px]">{p.nome}</td>
-                      <td className="py-2 pr-2 text-right">{p.qtd}</td>
-                      <td className="py-2 pr-2 text-right font-semibold">{formatCurrency(p.total)}</td>
-                      <td className={`py-2 text-right font-medium ${margemColorClass(m)}`}>{formatPercent(m)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">Nenhuma venda este mês</p>
-        )}
       </div>
 
       {/* Insights inteligentes — colapsável + expansível */}
@@ -424,16 +299,18 @@ export default function Dashboard() {
         const visible = insights.slice(0, visibleCount);
         const hidden = insights.length - visible.length;
         return (
-          <div className="bg-card rounded-xl shadow-sm">
+          <div className="bg-card rounded-2xl card-elev overflow-hidden">
             <button
               onClick={() => setInsightsMinimized(m => !m)}
-              className="w-full flex items-center justify-between p-3 hover:bg-muted/30 rounded-t-xl transition-colors"
+              className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Lightbulb size={16} className="text-warning" />
-                <h3 className="text-sm font-semibold text-secondary">Insights</h3>
+                <div className="w-7 h-7 rounded-lg bg-warning/15 flex items-center justify-center">
+                  <Lightbulb size={14} className="text-warning" />
+                </div>
+                <h3 className="text-sm font-semibold tracking-tight">Insights</h3>
                 {alertasCount > 0 && !insightsMinimized && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground font-bold">{alertasCount}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground font-bold">{alertasCount}</span>
                 )}
                 {insightsMinimized && (
                   <span className="text-xs text-muted-foreground">
@@ -485,11 +362,137 @@ export default function Dashboard() {
         );
       })()}
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button onClick={() => setOpenSheet('hoje')} className="relative overflow-hidden rounded-2xl p-4 space-y-2 text-left pressable bg-gradient-to-br from-primary to-[hsl(192_85%_32%)] text-primary-foreground shadow-[0_8px_24px_-8px_hsl(192_83%_38%/0.4)]">
+          <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative flex items-center gap-2 text-primary-foreground/80"><TrendingUp size={15} strokeWidth={2.5} /><span className="text-xs font-semibold">Hoje</span></div>
+          <p className="relative text-2xl font-bold tabular-nums">{formatCurrency(fatHoje)}</p>
+          <p className="relative text-[11px] text-primary-foreground/70">{vendasHoje.length} venda{vendasHoje.length !== 1 ? 's' : ''}</p>
+        </button>
+
+        <button onClick={() => setOpenSheet('semana')} className="bg-card rounded-2xl p-4 card-elev space-y-2 text-left pressable">
+          <div className="flex items-center gap-2 text-muted-foreground"><Target size={15} strokeWidth={2.2} /><span className="text-xs font-semibold">{periodo === 'semana' ? 'Semana' : 'Mês'}</span></div>
+          <p className="text-xl font-bold tabular-nums">{formatCurrency(fatPeriodo)}</p>
+          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+            <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((fatPeriodo / metaPeriodo) * 100, 100)}%` }} />
+          </div>
+          <p className="text-[11px] text-muted-foreground tabular-nums">Meta {formatCurrency(metaPeriodo)}</p>
+        </button>
+
+        <button onClick={() => setOpenSheet('margem')} className="bg-card rounded-2xl p-4 card-elev space-y-2 text-left pressable">
+          <div className="flex items-center gap-2 text-muted-foreground"><Percent size={15} strokeWidth={2.2} /><span className="text-xs font-semibold">Margem</span></div>
+          <p className={`text-2xl font-bold tabular-nums ${margemColorClass(margemPctPeriodo)}`}>{hasData ? formatPercent(margemPctPeriodo) : '—'}</p>
+          <p className="text-[11px] text-muted-foreground tabular-nums">{hasData ? `${formatCurrency(fatPeriodo - custoPeriodo)} bruto` : 'Sem dados'}</p>
+        </button>
+
+        <button onClick={() => setOpenSheet('ticket')} className="bg-card rounded-2xl p-4 card-elev space-y-2 text-left pressable">
+          <div className="flex items-center gap-2 text-muted-foreground"><Receipt size={15} strokeWidth={2.2} /><span className="text-xs font-semibold">Ticket</span></div>
+          <p className="text-2xl font-bold tabular-nums">{hasData ? formatCurrency(ticketMedio) : '—'}</p>
+          <p className="text-[11px] text-muted-foreground">{numVendasMes} venda{numVendasMes !== 1 ? 's' : ''} no mês</p>
+        </button>
+      </div>
+
+      {/* Recontatos */}
+      {(clientesRecontato || []).length > 0 && (
+        <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold tracking-tight">Recontatos pendentes</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning font-semibold">{clientesRecontato!.length}</span>
+          </div>
+          <div className="space-y-2">
+            {clientesRecontato!.map(c => {
+              const dias = diasAtras(c.data_ultima_compra || c.created_at || '');
+              const script = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
+              const whatsNum = (c.whatsapp || '').replace(/\D/g, '');
+              const whatsNumFull = whatsNum.startsWith('55') ? whatsNum : `55${whatsNum}`;
+              const whatsUrl = `https://wa.me/${whatsNumFull}?text=${encodeURIComponent(script)}`;
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-2 py-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{c.nome}</p>
+                    <p className="text-xs text-muted-foreground">há {dias} dias sem compra</p>
+                  </div>
+                  <a href={whatsUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 w-9 h-9 rounded-full bg-success flex items-center justify-center pressable shadow-[0_4px_12px_-2px_hsl(158_64%_42%/0.4)]">
+                    <MessageCircle size={15} className="text-success-foreground" />
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Chart — clickable bars */}
+      <div className="bg-card rounded-2xl p-4 card-elev">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold tracking-tight">Faturamento <span className="text-muted-foreground font-normal">— {periodo === 'semana' ? 'últimos 7 dias' : 'mês atual'}</span></h3>
+          <BarChart3 size={15} className="text-muted-foreground" />
+        </div>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={activeChartData} onClick={(e) => {
+              if (e && e.activeTooltipIndex !== undefined) {
+                setSelectedChartDay(e.activeTooltipIndex);
+                setOpenSheet('chartDay');
+              }
+            }}>
+              <defs>
+                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(185 73% 47%)" />
+                  <stop offset="100%" stopColor="hsl(192 83% 38%)" />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'hsl(220 9% 46%)' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(220 9% 46%)' }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} width={50} />
+              <Tooltip formatter={(v: number) => [formatCurrency(v), 'Faturamento']} contentStyle={{ borderRadius: 12, border: '0.5px solid hsl(220 13% 91%)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', fontSize: 12 }} cursor={{ fill: 'hsl(var(--muted))', radius: 6 }} />
+              <Bar dataKey="valor" radius={[8, 8, 0, 0]} className="cursor-pointer" fill="url(#barGrad)">
+                {chartData.map((_, i) => (
+                  <Cell key={i} fill="url(#barGrad)" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[200px] flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Registre vendas para ver o gráfico</p>
+          </div>
+        )}
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">Toque numa barra para ver o detalhe</p>
+      </div>
+
+      {/* Top 5 produtos do mês */}
+      <div className="bg-card rounded-2xl p-4 card-elev">
+        <h3 className="text-sm font-semibold tracking-tight mb-3">Top produtos do mês</h3>
+        {top5.length > 0 ? (
+          <div className="space-y-1.5">
+            {top5.map((p, i) => {
+              const m = p.total > 0 ? ((p.total - p.custo) / p.total) * 100 : 0;
+              return (
+                <div key={i} className="flex items-center gap-3 py-1.5">
+                  <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold tabular-nums">{i + 1}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.nome}</p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">{p.qtd} un · {formatPercent(m)} margem</p>
+                  </div>
+                  <p className="text-sm font-bold tabular-nums shrink-0">{formatCurrency(p.total)}</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">Nenhuma venda este mês</p>
+        )}
+      </div>
+
+
       {/* Gastos do mês — cards por categoria */}
       {hasData && (
-        <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+        <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-secondary">Gastos do mês</h3>
+            <h3 className="text-sm font-semibold tracking-tight">Gastos do mês</h3>
             <Link to="/configuracoes" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
               <Plus size={12} /> Adicionar
             </Link>
@@ -547,9 +550,9 @@ export default function Dashboard() {
 
       {/* Resultado do mês — estilo extrato (linha por linha) */}
       {hasData && (
-        <div className="bg-card rounded-xl p-4 shadow-sm space-y-2">
+        <div className="bg-card rounded-2xl p-4 card-elev space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-secondary">Resultado do mês</h3>
+            <h3 className="text-sm font-semibold tracking-tight">Resultado do mês</h3>
             <button onClick={() => setOpenSheet('quebra')} className="text-xs text-primary hover:underline">Detalhes</button>
           </div>
           <div className="space-y-1.5 text-sm">
@@ -623,31 +626,31 @@ export default function Dashboard() {
 
       {/* Resumo do mês — clickable */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <button onClick={() => setOpenSheet('ebitda')} className="bg-card rounded-xl p-4 shadow-sm space-y-1 text-left transition-transform active:scale-[0.97]">
+        <button onClick={() => setOpenSheet('ebitda')} className="bg-card rounded-2xl p-4 card-elev space-y-1 text-left pressable">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground font-medium">EBITDA estimado</p>
+            <p className="text-xs text-muted-foreground font-semibold">EBITDA estimado</p>
             <Info size={12} className="text-muted-foreground" />
           </div>
-          <p className={`text-xl font-bold ${ebitda >= 0 ? 'text-success' : 'text-destructive'}`}>{hasData ? formatCurrency(ebitda) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">Custos fixos: {formatCurrency(custosFixos)}/mês</p>
+          <p className={`text-xl font-bold tabular-nums ${ebitda >= 0 ? 'text-success' : 'text-destructive'}`}>{hasData ? formatCurrency(ebitda) : '—'}</p>
+          <p className="text-[10px] text-muted-foreground tabular-nums">Custos fixos: {formatCurrency(custosFixos)}/mês</p>
         </button>
-        <button onClick={() => setOpenSheet('breakeven')} className="bg-card rounded-xl p-4 shadow-sm space-y-2 text-left transition-transform active:scale-[0.97]">
+        <button onClick={() => setOpenSheet('breakeven')} className="bg-card rounded-2xl p-4 card-elev space-y-2 text-left pressable">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground font-medium">Break-even</p>
+            <p className="text-xs text-muted-foreground font-semibold">Break-even</p>
             <Info size={12} className="text-muted-foreground" />
           </div>
-          <p className="text-lg font-bold">{formatCurrency(fatMes)} <span className="text-xs font-normal text-muted-foreground">de {formatCurrency(breakEven)}</span></p>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div className={`h-2 rounded-full transition-all ${fatMes >= breakEven ? 'bg-success' : 'bg-primary'}`} style={{ width: `${Math.min((fatMes / breakEven) * 100, 100)}%` }} />
+          <p className="text-lg font-bold tabular-nums">{formatCurrency(fatMes)} <span className="text-xs font-normal text-muted-foreground">/ {formatCurrency(breakEven)}</span></p>
+          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-500 ${fatMes >= breakEven ? 'bg-success' : 'bg-primary'}`} style={{ width: `${Math.min((fatMes / breakEven) * 100, 100)}%` }} />
           </div>
         </button>
-        <button onClick={() => setOpenSheet('projecao')} className="bg-card rounded-xl p-4 shadow-sm space-y-1 text-left transition-transform active:scale-[0.97]">
+        <button onClick={() => setOpenSheet('projecao')} className="bg-card rounded-2xl p-4 card-elev space-y-1 text-left pressable">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground font-medium">Projeção do mês</p>
+            <p className="text-xs text-muted-foreground font-semibold">Projeção do mês</p>
             <Info size={12} className="text-muted-foreground" />
           </div>
-          <p className="text-xl font-bold text-primary">{hasData ? formatCurrency(projecao) : '—'}</p>
-          <p className="text-[10px] text-muted-foreground">Projeção baseada no ritmo atual</p>
+          <p className="text-xl font-bold text-primary tabular-nums">{hasData ? formatCurrency(projecao) : '—'}</p>
+          <p className="text-[10px] text-muted-foreground">Baseado no ritmo atual</p>
         </button>
       </div>
 

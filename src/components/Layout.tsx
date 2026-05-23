@@ -19,42 +19,44 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
       {!isMobile && (
-        <aside className="w-60 flex flex-col shrink-0 min-h-screen bg-secondary shadow-xl">
-          <div className="h-16 flex items-center px-5 border-b border-white/10">
+        <aside className="w-60 flex flex-col shrink-0 min-h-screen glass-sidebar relative">
+          {/* Glow sutil no canto superior pra dar profundidade */}
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
+          <div className="h-16 flex items-center px-5 border-b border-white/8 relative">
             <span className="text-xl font-black text-white tracking-tight">PEAK</span>
             <span className="text-sm font-semibold text-primary ml-1.5">Suplementos</span>
           </div>
-          <nav className="flex flex-col gap-0.5 px-3 pt-3 flex-1">
+          <nav className="flex flex-col gap-1 px-3 pt-4 flex-1 relative">
             {navItems.map((item) => {
               const active = location.pathname === item.path;
               return (
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium pressable ${
                     active
-                      ? "bg-white/15 text-white shadow-sm"
-                      : "text-white/60 hover:bg-white/8 hover:text-white/90"
+                      ? "bg-white/12 text-white shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)]"
+                      : "text-white/55 hover:bg-white/5 hover:text-white/90"
                   }`}
                 >
-                  <item.icon size={17} className={active ? "text-primary" : ""} />
+                  <item.icon size={17} className={active ? "text-primary" : ""} strokeWidth={active ? 2.5 : 2} />
                   {item.label}
-                  {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                  {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(16,144,176,0.6)]" />}
                 </button>
               );
             })}
           </nav>
-          <div className="px-3 pb-4">
-            <div className="h-px bg-white/10 mb-3" />
+          <div className="px-3 pb-4 relative">
+            <div className="h-px bg-white/8 mb-3" />
             <button
               onClick={() => navigate("/configuracoes")}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium pressable w-full ${
                 location.pathname === "/configuracoes"
-                  ? "bg-white/15 text-white"
-                  : "text-white/60 hover:bg-white/8 hover:text-white/90"
+                  ? "bg-white/12 text-white"
+                  : "text-white/55 hover:bg-white/5 hover:text-white/90"
               }`}
             >
-              <Settings size={17} />
+              <Settings size={17} strokeWidth={location.pathname === "/configuracoes" ? 2.5 : 2} />
               Configurações
             </button>
           </div>
@@ -62,7 +64,7 @@ export default function Layout() {
       )}
 
       <div className="flex flex-col flex-1 min-h-screen overflow-hidden">
-        <header className="h-14 flex items-center justify-between px-4 shrink-0 z-20 bg-secondary md:bg-background/80 md:backdrop-blur-xl md:border-b md:border-border/60">
+        <header className="h-14 flex items-center justify-between px-4 shrink-0 z-20 glass-sidebar md:bg-background/70 md:backdrop-blur-2xl md:border-b md:border-border/50 md:[background:rgba(247,247,247,0.7)]">
           <div className="flex items-center gap-1.5 md:hidden">
             <span className="text-lg font-black text-white tracking-tight">PEAK</span>
             <span className="text-sm font-semibold text-primary">Suplementos</span>

@@ -230,11 +230,13 @@ export default function CFOPeak() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <div className="flex items-center gap-2">
-            <Briefcase size={22} className="text-secondary" />
-            <h1 className="text-xl font-bold text-secondary">CFO Peak</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-[0_4px_12px_-2px_hsl(192_83%_38%/0.4)]">
+              <Briefcase size={16} className="text-white" strokeWidth={2.5} />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">CFO Peak</h1>
           </div>
-          <p className="text-sm text-muted-foreground">Visão executiva — {meses[today.getMonth()]}/{String(today.getFullYear()).slice(2)}</p>
+          <p className="text-sm text-muted-foreground mt-1">Visão executiva — {meses[today.getMonth()]}/{String(today.getFullYear()).slice(2)}</p>
         </div>
         <Link to="/configuracoes" className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
           <Settings size={14} /> Configurar pró-labore, reserva, canais
@@ -266,13 +268,15 @@ export default function CFOPeak() {
       {/* Diagnóstico — 4 cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {diagnostico.map(d => (
-          <div key={d.label} className={`rounded-xl p-3 border ${statusBg(d.status)} border-transparent`}>
-            <div className="flex items-center justify-between mb-1">
-              <d.icon size={14} className={statusColor(d.status)} />
-              <span className={`w-2 h-2 rounded-full ${d.status === 'ok' ? 'bg-success' : d.status === 'atencao' ? 'bg-warning' : 'bg-destructive'}`} />
+          <div key={d.label} className={`rounded-2xl p-3.5 ${statusBg(d.status)} card-elev`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${d.status === 'ok' ? 'bg-success/15' : d.status === 'atencao' ? 'bg-warning/15' : 'bg-destructive/15'}`}>
+                <d.icon size={14} className={statusColor(d.status)} strokeWidth={2.5} />
+              </div>
+              <span className={`w-2 h-2 rounded-full ${d.status === 'ok' ? 'bg-success shadow-[0_0_6px_hsl(158_64%_42%/0.6)]' : d.status === 'atencao' ? 'bg-warning' : 'bg-destructive animate-pulse'}`} />
             </div>
-            <p className="text-[11px] text-muted-foreground font-medium">{d.label}</p>
-            <p className={`text-lg font-bold ${statusColor(d.status)}`}>{d.valor}</p>
+            <p className="text-[11px] text-muted-foreground font-semibold">{d.label}</p>
+            <p className={`text-lg font-bold tabular-nums ${statusColor(d.status)}`}>{d.valor}</p>
             <p className="text-[10px] text-muted-foreground truncate">{d.sub}</p>
           </div>
         ))}
@@ -294,7 +298,7 @@ export default function CFOPeak() {
       </div>
 
       {/* DRE Mensal */}
-      <div className="bg-card rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-card rounded-2xl card-elev overflow-hidden">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText size={16} className="text-secondary" />
@@ -332,7 +336,7 @@ export default function CFOPeak() {
       </div>
 
       {/* Histórico 6 meses */}
-      <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+      <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-secondary">Histórico — últimos 6 meses</h2>
           <div className="flex items-center gap-3 text-[11px]">
@@ -392,7 +396,7 @@ export default function CFOPeak() {
       </div>
 
       {/* ROAS por canal */}
-      <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+      <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-secondary">ROAS por canal — {meses[today.getMonth()]}</h2>
           <Link to="/configuracoes" className="text-[11px] text-primary hover:underline">Gerenciar canais</Link>
@@ -439,7 +443,7 @@ export default function CFOPeak() {
       </div>
 
       {/* Teto MEI */}
-      <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+      <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-secondary">Teto MEI {today.getFullYear()}</h2>
           <span className={`text-xs font-medium ${statusColor(tetoMEI.status === 'ok' ? 'ok' : tetoMEI.status === 'atencao' ? 'atencao' : 'critico')}`}>

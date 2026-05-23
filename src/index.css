@@ -6,49 +6,54 @@
 
 @layer base {
   :root {
-    --background: 220 20% 96%;
-    --foreground: 220 15% 12%;
+    /* Peak Brand Kit
+     * #102030 Navy profundo · #103050 Navy médio · #1090B0 Teal Peak
+     * #20C0D0 Ciano destaque · #F7F7F7 Off-white · #191919 Preto texto
+     */
+
+    --background: 0 0% 97%;             /* #F7F7F7 */
+    --foreground: 0 0% 10%;             /* #191919 */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 12%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 12%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 193 100% 42%;
+    --primary: 192 83% 38%;             /* #1090B0 Teal Peak */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 57% 26%;
+    --secondary: 213 51% 13%;           /* #102030 Navy profundo */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 20% 92%;
-    --muted-foreground: 220 10% 48%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 193 100% 95%;
-    --accent-foreground: 193 100% 30%;
+    --accent: 185 73% 47%;              /* #20C0D0 Ciano */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 18% 88%;
-    --input: 220 18% 88%;
-    --ring: 193 100% 42%;
+    --border: 220 13% 91%;              /* mais sutil que antes */
+    --input: 220 13% 91%;
+    --ring: 192 83% 38%;
 
     --radius: 1rem;
 
-    --success: 152 60% 40%;
+    --success: 158 64% 42%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 32 95% 50%;
     --warning-foreground: 0 0% 10%;
 
-    --sidebar-background: 217 57% 26%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-primary: 193 100% 42%;
+    --sidebar-background: 213 51% 13%;     /* #102030 */
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 185 73% 47%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 50% 32%;
+    --sidebar-accent: 213 51% 19%;          /* gradient layer */
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 217 45% 35%;
-    --sidebar-ring: 193 100% 42%;
+    --sidebar-border: 213 30% 22%;
+    --sidebar-ring: 192 83% 38%;
   }
 }
 
@@ -56,11 +61,24 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'ss01', 'cv11', 'kern';
+    letter-spacing: -0.01em;
+  }
+  /* Números tabulares onde fizer sentido (cards, tabelas) */
+  .tabular-nums, .font-mono-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
   }
   /* iOS-style thin scrollbars */
   ::-webkit-scrollbar {
@@ -83,6 +101,7 @@
   .text-balance {
     text-wrap: balance;
   }
+
   /* iOS-style glass card */
   .glass-card {
     background: rgba(255, 255, 255, 0.72);
@@ -90,12 +109,55 @@
     -webkit-backdrop-filter: blur(20px) saturate(1.8);
     border: 1px solid rgba(255, 255, 255, 0.5);
   }
+
+  /* Sidebar com vidro fosco sobre navy */
+  .glass-sidebar {
+    background: linear-gradient(180deg,
+      hsl(var(--sidebar-background)) 0%,
+      hsl(213 50% 11%) 100%
+    );
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Cartões com profundidade sutil — sombra em camadas estilo Apple */
+  .card-elev {
+    box-shadow:
+      0 0 0 1px hsl(0 0% 0% / 0.04),
+      0 1px 2px hsl(0 0% 0% / 0.04),
+      0 4px 12px -2px hsl(0 0% 0% / 0.04);
+    transition: box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1),
+                transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card-elev:hover {
+    box-shadow:
+      0 0 0 1px hsl(0 0% 0% / 0.06),
+      0 4px 8px hsl(0 0% 0% / 0.04),
+      0 12px 24px -4px hsl(0 0% 0% / 0.06);
+  }
+
   /* Smooth press animation */
   .pressable {
-    transition: transform 0.15s ease, opacity 0.15s ease;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.2s ease,
+                box-shadow 0.2s ease;
   }
   .pressable:active {
     transform: scale(0.97);
-    opacity: 0.85;
+    opacity: 0.88;
+  }
+
+  /* Fade-in suave (ease-out spring) */
+  .animate-fade-in {
+    animation: fade-in 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Divider mais sutil */
+  .divider-sutil {
+    border-color: hsl(220 13% 93%);
   }
 }

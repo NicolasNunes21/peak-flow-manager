@@ -202,6 +202,28 @@ describe("historicoMensal", () => {
     const hist = historicoMensal({ vendas: [], gastos, meses: 3, hoje: HOJE });
     expect(hist.every(h => h.totalGastos === 1000)).toBe(true);
   });
+
+  it("desdeInicio limita o histórico ao período em que a loja existe", () => {
+    // Loja iniciou em março (HOJE = 23 de maio) — deve mostrar mar, abr, mai
+    const marco = new Date('2026-03-15T00:00:00Z');
+    const hist = historicoMensal({ vendas: [], gastos: [], desdeInicio: marco, hoje: HOJE });
+    expect(hist).toHaveLength(3);
+    expect(hist[0].label).toContain('Mar');
+    expect(hist[hist.length - 1].label).toContain('Mai');
+  });
+
+  it("desdeInicio retorna pelo menos 1 mês mesmo quando início é no mês atual", () => {
+    const inicio = new Date('2026-05-10T00:00:00Z');
+    const hist = historicoMensal({ vendas: [], gastos: [], desdeInicio: inicio, hoje: HOJE });
+    expect(hist).toHaveLength(1);
+    expect(hist[0].label).toContain('Mai');
+  });
+
+  it("desdeInicio limita a 12 meses mesmo se loja for mais antiga", () => {
+    const muitoAntigo = new Date('2020-01-01T00:00:00Z');
+    const hist = historicoMensal({ vendas: [], gastos: [], desdeInicio: muitoAntigo, hoje: HOJE });
+    expect(hist.length).toBeLessThanOrEqual(12);
+  });
 });
 
 describe("tendencia", () => {

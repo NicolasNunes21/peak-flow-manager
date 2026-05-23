@@ -105,14 +105,26 @@ export type SnapshotMes = {
 };
 
 export function historicoMensal(opts: {
-  vendas: Venda[];           // vendas dos últimos N meses
+  vendas: Venda[];           // vendas para análise
   gastos: Gasto[];           // todos os gastos
-  meses: number;             // quantos meses voltar
+  meses?: number;            // qtd de meses (modo legacy); ignorado se desdeInicio definido
+  desdeInicio?: Date | null; // se definido, começa nesse mês até o mês atual (limitado a 12)
   hoje?: Date;
 }): SnapshotMes[] {
   const hoje = opts.hoje ?? new Date();
+
+  // Calcula quantos meses voltar
+  let mesesVoltar: number;
+  if (opts.desdeInicio) {
+    const inicio = opts.desdeInicio;
+    const diffMeses = (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth());
+    mesesVoltar = Math.max(1, Math.min(diffMeses + 1, 12));
+  } else {
+    mesesVoltar = opts.meses ?? 6;
+  }
+
   const result: SnapshotMes[] = [];
-  for (let i = opts.meses - 1; i >= 0; i--) {
+  for (let i = mesesVoltar - 1; i >= 0; i--) {
     const ref = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
     const next = new Date(hoje.getFullYear(), hoje.getMonth() - i + 1, 1);
     const ano = ref.getFullYear();

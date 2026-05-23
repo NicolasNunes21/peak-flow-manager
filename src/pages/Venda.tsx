@@ -47,9 +47,21 @@ export default function Venda() {
   const { data: canais } = useQuery({
     queryKey: ["canais"],
     queryFn: async () => {
-      const { data } = await supabase.from("canais").select("*").eq("ativo", true).order("nome");
+      const { data, error } = await supabase.from("canais").select("*").eq("ativo", true).order("nome");
+      if (error) {
+        // Tabela ainda não foi criada — fallback com canais básicos
+        if (error.code === "PGRST205" || error.message?.includes("canais")) {
+          return [
+            { id: 'fallback-loja', nome: 'Loja física', tipo: 'loja', ativo: true, created_at: null },
+            { id: 'fallback-instagram', nome: 'Instagram', tipo: 'organico', ativo: true, created_at: null },
+            { id: 'fallback-indica', nome: 'Indicação', tipo: 'organico', ativo: true, created_at: null },
+          ];
+        }
+        throw error;
+      }
       return data || [];
     },
+    retry: false,
   });
   const canaisAtivos = useMemo(() => canais || [], [canais]);
 

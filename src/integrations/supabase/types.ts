@@ -104,6 +104,53 @@ export type Database = {
         }
         Relationships: []
       }
+      compras: {
+        Row: {
+          created_at: string | null
+          custo_total: number | null
+          custo_unit: number
+          data_compra: string | null
+          fornecedor_nome: string | null
+          id: string
+          observacao: string | null
+          produto_id: string | null
+          produto_nome: string | null
+          quantidade: number
+        }
+        Insert: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unit?: number
+          data_compra?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+        }
+        Update: {
+          created_at?: string | null
+          custo_total?: number | null
+          custo_unit?: number
+          data_compra?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       config_financeira: {
         Row: {
           chave: string
@@ -158,6 +205,24 @@ export type Database = {
           nome?: string
           recorrencia?: string
           valor?: number
+        }
+        Relationships: []
+      }
+      fornecedores: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome?: string
         }
         Relationships: []
       }

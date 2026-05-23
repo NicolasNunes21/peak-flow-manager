@@ -28,6 +28,8 @@ export default function Venda() {
   const [precoVenda, setPrecoVenda] = useState<number>(0);
   const [formaPgto, setFormaPgto] = useState("");
   const [canal, setCanal] = useState("");
+  const [descontoRs, setDescontoRs] = useState<number>(0);
+  const [brinde, setBrinde] = useState<string>("");
   const [showAddCanal, setShowAddCanal] = useState(false);
   const [novoCanalNome, setNovoCanalNome] = useState("");
   const [novoCanalTipo, setNovoCanalTipo] = useState<'loja' | 'organico' | 'pago' | 'parceria'>('parceria');
@@ -163,7 +165,7 @@ export default function Venda() {
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setQuantidade(1); setPrecoVenda(0);
     setFormaPgto(""); setCanal(canaisAtivos[0]?.nome || ""); setClienteSearch(""); setSelectedCliente(null);
-    setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao("");
+    setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao(""); setDescontoRs(0); setBrinde("");
     setDataVenda(todayStr);
   };
 
@@ -181,15 +183,17 @@ export default function Venda() {
         if (newCliente) { clienteId = newCliente.id; clienteNome = newCliente.nome; }
       }
 
-      const totalPreco = precoVenda * quantidade;
+      const totalPreco = precoVenda * quantidade - descontoRs;
       const vendaDate = new Date(dataVenda + 'T12:00:00');
       await supabase.from("vendas").insert({
         produto_id: selectedProduto.id, produto_nome: selectedProduto.nome,
         cliente_id: clienteId, cliente_nome: clienteNome, quantidade,
         preco_venda: precoVenda, custo_unit: custoUnit, forma_pgto: formaPgto,
         canal, observacao: observacao || null,
+        desconto_rs: descontoRs > 0 ? descontoRs : null,
+        brinde: brinde.trim() || null,
         created_at: vendaDate.toISOString(),
-      });
+      } as any);
 
       await supabase.from("produtos").update({
         qtd_atual: (selectedProduto.qtd_atual || 0) - quantidade,
@@ -466,6 +470,47 @@ export default function Venda() {
             </div>
           )}
         </div>
+
+        {/* Desconto e brinde */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-center block">Desconto</label>
+            <div className="relative">
+              <span className="absolute left-3 top-3 text-xs text-muted-foreground">R$</span>
+              <input
+                type="number" step="0.01" min={0}
+                placeholder="0,00"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={descontoRs || ''}
+                onChange={e => setDescontoRs(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-center block">Brinde</label>
+            <input
+              type="text"
+              placeholder="ex: Pasta amendoim"
+              className="w-full px-3 py-2.5 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={brinde}
+              onChange={e => setBrinde(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {(descontoRs > 0 || brinde.trim()) && selectedProduto && (
+          <div className="bg-warning/5 border border-warning/30 rounded-xl p-3 text-xs">
+            <p className="font-semibold text-warning mb-0.5">Resumo</p>
+            <p className="text-muted-foreground">
+              Valor cheio: {formatCurrency(precoVenda * quantidade)} ·
+              {descontoRs > 0 && ` Desconto: −${formatCurrency(descontoRs)} ·`}
+              {brinde.trim() && ` Brinde: ${brinde}`}
+            </p>
+            <p className="font-bold mt-1">
+              Total cobrado: {formatCurrency(precoVenda * quantidade - descontoRs)}
+            </p>
+          </div>
+        )}
 
         {/* Observação */}
         <div className="space-y-2">

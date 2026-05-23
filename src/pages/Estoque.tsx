@@ -3,10 +3,11 @@ import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, margemColorClass } from "@/lib/format";
-import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2, LayoutGrid, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, Pencil, X, Download, Upload, List, Table2, Filter, Check, ArrowUpDown, Trash2, LayoutGrid, ChevronDown, ChevronRight, Sliders } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import AjustarEstoqueModal from "@/components/AjustarEstoqueModal";
 
 type Produto = {
   id: string; sku: string | null; nome: string; marca: string | null; categoria: string | null;
@@ -29,6 +30,7 @@ export default function Estoque() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState("todos");
+  const [ajustarProduto, setAjustarProduto] = useState<any | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<'table' | 'list' | 'grouped'>('table');
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
@@ -512,7 +514,10 @@ export default function Estoque() {
                       {p.validade ? (diasVal !== null && diasVal < 30 ? `${diasVal}d` : p.validade) : '—'}
                     </td>
                     <td className="px-2 py-2">
-                      <button onClick={() => { setEditingInline(p.id); setInlineData({ ...p }); }} className="p-1 rounded hover:bg-muted"><Pencil size={12} /></button>
+                      <div className="flex gap-0.5">
+                        <button onClick={() => { setEditingInline(p.id); setInlineData({ ...p }); }} className="p-1 rounded hover:bg-muted" title="Editar inline"><Pencil size={12} /></button>
+                        <button onClick={() => setAjustarProduto(p)} className="p-1 rounded hover:bg-muted" title="Ajustar estoque"><Sliders size={12} /></button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -551,6 +556,9 @@ export default function Estoque() {
                 <div className="flex flex-col gap-1">
                   <button onClick={() => openEditModal(p)} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-muted active:scale-95" title="Editar">
                     <Pencil size={14} />
+                  </button>
+                  <button onClick={() => setAjustarProduto(p)} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-muted active:scale-95" title="Ajustar estoque (perda/brinde/furto)">
+                    <Sliders size={14} />
                   </button>
                   <button onClick={() => confirmDelete(p)} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive active:scale-95" title="Excluir">
                     <Trash2 size={14} />
@@ -620,6 +628,7 @@ export default function Estoque() {
                                 </div>
                               </div>
                               <button onClick={() => openEditModal(p)} className="p-1.5 rounded hover:bg-muted" title="Editar"><Pencil size={13} /></button>
+                              <button onClick={() => setAjustarProduto(p)} className="p-1.5 rounded hover:bg-muted" title="Ajustar estoque"><Sliders size={13} /></button>
                               <button onClick={() => confirmDelete(p)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Excluir"><Trash2 size={13} /></button>
                             </div>
                           );
@@ -742,6 +751,8 @@ export default function Estoque() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {ajustarProduto && <AjustarEstoqueModal produto={ajustarProduto} onClose={() => setAjustarProduto(null)} />}
     </div>
   );
 }

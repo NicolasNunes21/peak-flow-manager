@@ -7,6 +7,7 @@ import { calcularDRE, historicoMensal, tendencia, calcularROAS, statusTetoMEI, c
 import { gerarRecomendacoes, type Recomendacao } from "@/lib/cfo-recomenda";
 import { useConfigFinanceira } from "@/lib/configFinanceira";
 import { useCanais } from "@/lib/canaisStore";
+import { calcularABC, resumirABC } from "@/lib/analiseABC";
 import { Briefcase, AlertTriangle, TrendingUp, TrendingDown, Minus, ChevronRight, Settings, FileText, Sparkles, Info, Shield, Target, Wallet, Building2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -160,6 +161,14 @@ export default function CFOPeak() {
     return { bombando, parados, ruptura };
   }, [produtos, vendas6m, today]);
 
+  // Análise ABC (Curva de Pareto) — últimas 90 dias
+  const abc = useMemo(() => {
+    const last90 = new Date(today.getTime() - 90 * 86400000);
+    const vendasAbc = (vendas6m || []).filter(v => v.created_at && new Date(v.created_at) >= last90);
+    return calcularABC(vendasAbc as any);
+  }, [vendas6m, today]);
+  const resumoABC = useMemo(() => resumirABC(abc), [abc]);
+
   const recomendacoes: Recomendacao[] = useMemo(() => {
     if (!dre) return [];
     return gerarRecomendacoes({
@@ -304,6 +313,12 @@ export default function CFOPeak() {
         </div>
         <div className="p-4 space-y-1 text-sm">
           <DRELinha label="(+) Receita Bruta" valor={dre.receitaBruta} bold />
+          {dre.descontos > 0 && (
+            <DRELinha label="(−) Descontos concedidos" valor={-dre.descontos} neg small />
+          )}
+          {dre.descontos > 0 && (
+            <DRELinha label="(=) Receita Líquida" valor={dre.receitaLiquida} subtotal />
+          )}
           <DRELinha label="(−) CMV (custo dos produtos)" valor={-dre.cmv} neg />
           <DRELinha label="(=) Lucro Bruto" valor={dre.lucroBruto} sub={`Margem ${formatPercent(dre.margemBrutaPct)}`} subtotal positiveColor />
           <div className="h-2" />
@@ -477,6 +492,78 @@ export default function CFOPeak() {
           </div>
         )}
       </div>
+
+      {/* Análise ABC (Curva de Pareto) */}
+      {abc.length > 0 && (
+        <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-secondary">Análise ABC — produtos (últimos 90 dias)</h2>
+            <span className="text-[10px] text-muted-foreground">{abc.length} SKU</span>
+          </div>
+
+          {/* Resumo por classe */}
+          <div className="grid grid-cols-3 gap-2">
+            {(['A','B','C'] as const).map(cls => {
+              const cor = cls === 'A' ? 'bg-success/10 border-success/30 text-success'
+                : cls === 'B' ? 'bg-warning/10 border-warning/30 text-warning'
+                : 'bg-muted/40 border-muted text-muted-foreground';
+              return (
+                <div key={cls} className={`rounded-lg border p-2.5 ${cor}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider">Classe {cls}</p>
+                  <p className="text-lg font-bold">{resumoABC.contagem[cls]} SKU</p>
+                  <p className="text-[10px]">{formatCurrency(resumoABC.faturamento[cls])} ({resumoABC.total > 0 ? ((resumoABC.faturamento[cls] / resumoABC.total) * 100).toFixed(0) : 0}%)</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Ações por classe */}
+          <div className="space-y-1.5 text-[11px]">
+            <div className="flex gap-2"><span className="font-bold text-success shrink-0">A:</span><span className="text-muted-foreground">{resumoABC.acaoSugerida.A}</span></div>
+            <div className="flex gap-2"><span className="font-bold text-warning shrink-0">B:</span><span className="text-muted-foreground">{resumoABC.acaoSugerida.B}</span></div>
+            <div className="flex gap-2"><span className="font-bold text-muted-foreground shrink-0">C:</span><span className="text-muted-foreground">{resumoABC.acaoSugerida.C}</span></div>
+          </div>
+
+          {/* Tabela de produtos */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-muted-foreground border-b">
+                  <th className="text-left py-1.5 px-1">#</th>
+                  <th className="text-left py-1.5 px-1">Produto</th>
+                  <th className="text-right py-1.5 px-1">Fat.</th>
+                  <th className="text-right py-1.5 px-1">%</th>
+                  <th className="text-right py-1.5 px-1">Acum</th>
+                  <th className="text-center py-1.5 px-1">Cl.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {abc.map((item, i) => {
+                  const corCls = item.classe === 'A' ? 'bg-success text-success-foreground'
+                    : item.classe === 'B' ? 'bg-warning text-warning-foreground'
+                    : 'bg-muted text-muted-foreground';
+                  return (
+                    <tr key={item.produto_id || item.produto_nome} className="border-b last:border-0">
+                      <td className="py-1.5 px-1 text-muted-foreground">{i + 1}</td>
+                      <td className="py-1.5 px-1 truncate max-w-[150px]">{item.produto_nome}</td>
+                      <td className="py-1.5 px-1 text-right font-medium">{formatCurrency(item.faturamento)}</td>
+                      <td className="py-1.5 px-1 text-right text-muted-foreground">{formatPercent(item.pctFaturamento)}</td>
+                      <td className="py-1.5 px-1 text-right text-muted-foreground">{formatPercent(item.pctAcumulado)}</td>
+                      <td className="py-1.5 px-1 text-center">
+                        <span className={`inline-block text-[10px] font-bold px-1.5 rounded ${corCls}`}>{item.classe}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-[10px] text-muted-foreground italic">
+            Princípio de Pareto: 80% do faturamento normalmente vem de 20% dos produtos. Classe A = essenciais, B = importantes, C = cauda longa.
+          </p>
+        </div>
+      )}
 
       {/* Benchmark de suplementos */}
       <div className="bg-muted/30 rounded-xl p-4 space-y-2">

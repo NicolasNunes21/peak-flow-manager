@@ -266,7 +266,9 @@ export default function Venda() {
       const vendaTimestamp = vendaDate.toISOString();
 
       // 4) Insere uma linha por item (com mesmo created_at + cliente_id, agrupador implícito)
-      const linhas = itensFinais.map(item => ({
+      // Tenta com colunas extras (desconto_rs, brinde); se a migration não rodou ainda,
+      // re-tenta sem essas colunas.
+      const linhasComExtras = itensFinais.map(item => ({
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
         cliente_id: clienteId,
@@ -281,8 +283,38 @@ export default function Venda() {
         brinde: item.brinde || null,
         created_at: vendaTimestamp,
       }));
-      const { error: insErr } = await supabase.from("vendas").insert(linhas as any);
-      if (insErr) throw insErr;
+      let { error: insErr } = await supabase.from("vendas").insert(linhasComExtras as any);
+      if (insErr && (
+        insErr.message?.includes("'brinde'") ||
+        insErr.message?.includes("'desconto_rs'") ||
+        insErr.code === 'PGRST204'
+      )) {
+        // Coluna não existe — tenta sem desconto_rs e brinde
+        const linhasBasicas = itensFinais.map(item => ({
+          produto_id: item.produto_id,
+          produto_nome: item.produto_nome,
+          cliente_id: clienteId,
+          cliente_nome: clienteNome,
+          quantidade: item.quantidade,
+          preco_venda: item.precoVenda,
+          custo_unit: item.custoUnit,
+          forma_pgto: formaPgto,
+          canal,
+          observacao: observacao || null,
+          created_at: vendaTimestamp,
+        }));
+        const retry = await supabase.from("vendas").insert(linhasBasicas as any);
+        if (retry.error) throw retry.error;
+        // Avisa que descontos/brindes não foram salvos
+        if (itensFinais.some(i => i.descontoRs > 0 || i.brinde)) {
+          toast({
+            title: "⚠ Venda salva (parcial)",
+            description: "Desconto/brinde não foram gravados — colunas 'desconto_rs' e 'brinde' não existem na tabela vendas. Aplique a migration no Supabase para registrar esses campos.",
+          });
+        }
+      } else if (insErr) {
+        throw insErr;
+      }
 
       // 5) Atualiza estoque de cada produto (consolida se mesmo produto aparece 2x)
       const stockDelta = new Map<string, number>();

@@ -375,7 +375,20 @@ export default function Dashboard() {
               </defs>
               <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'hsl(220 9% 46%)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'hsl(220 9% 46%)' }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} width={50} />
-              <Tooltip formatter={(v: number) => [formatCurrency(v), 'Faturamento']} contentStyle={{ borderRadius: 12, border: '0.5px solid hsl(220 13% 91%)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', fontSize: 12 }} cursor={{ fill: 'hsl(var(--muted))', radius: 6 }} />
+              <Tooltip
+                formatter={(v: number) => [formatCurrency(v), 'Faturamento']}
+                contentStyle={{
+                  borderRadius: 12,
+                  border: '0.5px solid hsl(var(--border))',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                  fontSize: 12,
+                  background: 'hsl(var(--card))',
+                  color: 'hsl(var(--card-foreground))',
+                }}
+                labelStyle={{ color: 'hsl(var(--card-foreground))' }}
+                itemStyle={{ color: 'hsl(var(--card-foreground))' }}
+                cursor={{ fill: 'hsl(var(--muted))', radius: 6 }}
+              />
               <Bar dataKey="valor" radius={[8, 8, 0, 0]} className="cursor-pointer" fill="url(#barGrad)">
                 {chartData.map((_, i) => (
                   <Cell key={i} fill="url(#barGrad)" />

@@ -309,7 +309,7 @@ export default function Compras() {
             <div className="space-y-3 bg-muted/50 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-secondary">Cadastrar novo produto</p>
-                <button onClick={() => { setShowNovoProduto(false); setNpNome(""); setNpMarca(""); setNpCategoria(""); setNpPrecoVenda(0); setNpEstoqueMin(5); }} className="text-xs text-destructive underline">Cancelar</button>
+                <button onClick={() => { setShowNovoProduto(false); setNpNome(""); setNpMarca(""); setNpCategoria(""); setPrecoVenda(0); setNpEstoqueMin(5); }} className="text-xs text-destructive underline">Cancelar</button>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Nome *</label>

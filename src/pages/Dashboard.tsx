@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent, formatDate, formatTime, diasAtras, diaSemanaAbrev, getWhatsAppScript, getSaudacao, getDataHojeCompleta, margemColorClass } from "@/lib/format";
-import { TrendingUp, Target, Percent, Receipt, MessageCircle, ChevronDown, ChevronRight, Info, BarChart3 } from "lucide-react";
+import { TrendingUp, Target, Percent, Receipt, MessageCircle, ChevronDown, ChevronRight, Info, BarChart3, Lightbulb, AlertTriangle, Sparkles, TrendingDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { gerarInsights, type Insight } from "@/lib/insights";
 
 export default function Dashboard() {
   const today = new Date();
@@ -47,6 +48,23 @@ export default function Dashboard() {
     queryKey: ["custos-fixos"],
     queryFn: async () => {
       const { data } = await supabase.from("custos_fixos").select("*");
+      return data || [];
+    },
+  });
+
+  // Para insights: produtos + vendas últimos 60 dias (para comparar mês atual vs anterior)
+  const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: produtos } = useQuery({
+    queryKey: ["produtos-dashboard"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos").select("*");
+      return data || [];
+    },
+  });
+  const { data: vendas60d } = useQuery({
+    queryKey: ["vendas-60d"],
+    queryFn: async () => {
+      const { data } = await supabase.from("vendas").select("*").gte("created_at", sixtyDaysAgo);
       return data || [];
     },
   });
@@ -201,11 +219,38 @@ export default function Dashboard() {
   const vendaMaisBaixa = allMes.length ? Math.min(...allMes.map(v => v.preco_venda * v.quantidade)) : 0;
 
   // Resumo do mês
-  const custosFixos = (custosFixosData || []).reduce((s, c) => s + Number(c.valor), 0) || 2000;
+  // Custos fixos: só os com recorrência "mensal" (Aluguel, luz, salário, etc.)
+  const custosFixosMensaisOnly = (custosFixosData || []).filter(c => (c as any).recorrencia === 'mensal');
+  const custosFixos = custosFixosMensaisOnly.reduce((s, c) => s + Number(c.valor), 0) || 2000;
   const ebitda = fatMes - custosMes - custosFixos;
   const margemMediaMes = fatMes > 0 ? ((fatMes - custosMes) / fatMes) * 100 : 0;
   const breakEven = margemMediaMes > 0 ? (custosFixos / (margemMediaMes / 100)) : 6450;
   const projecao = diasPassados > 0 ? (fatMes / diasPassados) * 30 : 0;
+
+  // Quebra do mês: gastos do mês por categoria (fixos contam todos; pontuais só os do mês)
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const gastosDoMes = (custosFixosData || []).filter(c => {
+    const r = (c as any).recorrencia;
+    if (r === 'mensal') return true;
+    const data = (c as any).data;
+    if (!data) return false;
+    const d = new Date(data);
+    return d >= new Date(monthStart) && d < monthEnd;
+  });
+  const gastosPorCategoria: Record<string, number> = {};
+  gastosDoMes.forEach(c => {
+    const cat = (c as any).categoria || 'Custo Fixo';
+    gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + Number(c.valor);
+  });
+  const totalGastosMes = Object.values(gastosPorCategoria).reduce((s, v) => s + v, 0);
+  const sobraReal = fatMes - custosMes - totalGastosMes;
+
+  // Insights
+  const insights: Insight[] = gerarInsights({
+    vendas60d: (vendas60d || []) as any,
+    produtos: (produtos || []) as any,
+    hoje: today,
+  });
 
   // Empty state
   const hasData = (vendas || []).length > 0 || allMes.length > 0;
@@ -352,6 +397,99 @@ export default function Dashboard() {
           <p className="text-sm text-muted-foreground text-center py-4">Nenhuma venda este mês</p>
         )}
       </div>
+
+      {/* Insights inteligentes */}
+      {hasData && (
+        <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <Lightbulb size={16} className="text-warning" />
+            <h3 className="text-sm font-semibold text-secondary">Insights</h3>
+          </div>
+          <div className="space-y-2">
+            {insights.map((ins, i) => {
+              const Icon = ins.tipo === 'alerta' ? AlertTriangle
+                : ins.tipo === 'oportunidade' ? TrendingDown
+                : ins.tipo === 'positivo' ? Sparkles
+                : Info;
+              const bg = ins.tipo === 'alerta' ? 'bg-destructive/5 border-destructive/20'
+                : ins.tipo === 'oportunidade' ? 'bg-warning/5 border-warning/20'
+                : ins.tipo === 'positivo' ? 'bg-success/5 border-success/20'
+                : 'bg-muted/30 border-muted';
+              const iconColor = ins.tipo === 'alerta' ? 'text-destructive'
+                : ins.tipo === 'oportunidade' ? 'text-warning'
+                : ins.tipo === 'positivo' ? 'text-success'
+                : 'text-muted-foreground';
+              return (
+                <div key={i} className={`flex items-start gap-2 p-3 rounded-lg border ${bg}`}>
+                  <Icon size={14} className={`shrink-0 mt-0.5 ${iconColor}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{ins.titulo}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{ins.descricao}</p>
+                    {ins.acao && <p className="text-[11px] mt-1 font-medium text-secondary">→ {ins.acao}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quebra do mês — pra onde foi o dinheiro */}
+      {hasData && (
+        <button onClick={() => setOpenSheet('quebra')} className="w-full bg-card rounded-xl p-4 shadow-sm space-y-3 text-left transition-transform active:scale-[0.99]">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-secondary">Quebra do mês</h3>
+            <Info size={12} className="text-muted-foreground" />
+          </div>
+          {(() => {
+            const total = Math.max(fatMes, 1);
+            const items = [
+              { label: 'Custo dos produtos (CMV)', valor: custosMes, color: 'bg-destructive' },
+              ...Object.entries(gastosPorCategoria).map(([cat, v]) => ({
+                label: cat,
+                valor: v,
+                color: cat === 'Custo Fixo' ? 'bg-secondary'
+                  : cat === 'Marketing' ? 'bg-primary'
+                  : cat === 'Anúncios' ? 'bg-warning'
+                  : cat === 'Investimento' ? 'bg-success'
+                  : cat === 'Parceria' ? 'bg-accent'
+                  : 'bg-muted-foreground',
+              })),
+              { label: 'Sobra real', valor: Math.max(sobraReal, 0), color: sobraReal >= 0 ? 'bg-success' : 'bg-destructive' },
+            ].filter(i => i.valor > 0);
+            return (
+              <>
+                <div className="flex h-2 rounded-full overflow-hidden bg-muted">
+                  {items.map((i, idx) => (
+                    <div key={idx} className={i.color} style={{ width: `${(i.valor / total) * 100}%` }} title={`${i.label}: ${formatCurrency(i.valor)}`} />
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  {items.map((i, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${i.color}`} />
+                        <span>{i.label}</span>
+                      </div>
+                      <span className="font-medium">{formatCurrency(i.valor)} <span className="text-muted-foreground">({((i.valor / total) * 100).toFixed(0)}%)</span></span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-1 flex items-center justify-between text-xs">
+                    <span className="font-semibold">Faturamento total</span>
+                    <span className="font-bold">{formatCurrency(fatMes)}</span>
+                  </div>
+                  {sobraReal < 0 && (
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="font-semibold text-destructive">Resultado negativo</span>
+                      <span className="font-bold text-destructive">{formatCurrency(sobraReal)}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </button>
+      )}
 
       {/* Resumo do mês — clickable */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -641,6 +779,79 @@ export default function Dashboard() {
             </div>
             <div className="bg-muted/30 rounded-xl p-3">
               <p className="text-xs text-muted-foreground"><strong>O que fazer:</strong> {fatMes >= breakEven ? 'Você já atingiu o break-even! Todo faturamento adicional é lucro líquido.' : `Faltam ${formatCurrency(breakEven - fatMes)} para atingir o ponto de equilíbrio.`}</p>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Quebra do mês detail */}
+      <Sheet open={openSheet === 'quebra'} onOpenChange={o => !o && setOpenSheet(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader><SheetTitle>Quebra do mês — pra onde foi o dinheiro</SheetTitle></SheetHeader>
+          <div className="space-y-4 mt-4">
+            <div className="bg-muted/50 rounded-xl p-4 space-y-2">
+              <p className="text-xs font-semibold text-secondary">Como ler</p>
+              <p className="text-xs">Faturamento − Custo dos produtos vendidos (CMV) − Todos os gastos do mês = Sobra real (o que sobrou no caixa).</p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between p-3 border rounded-xl bg-primary/5">
+                <span className="text-sm font-semibold">Faturamento do mês</span>
+                <span className="text-sm font-bold text-primary">{formatCurrency(fatMes)}</span>
+              </div>
+              <div className="flex justify-between p-3 border rounded-xl">
+                <div>
+                  <span className="text-sm">Custo dos produtos vendidos (CMV)</span>
+                  <p className="text-[10px] text-muted-foreground">O que você pagou pelos produtos que saíram</p>
+                </div>
+                <span className="text-sm font-bold text-destructive">−{formatCurrency(custosMes)}</span>
+              </div>
+
+              <div className="pt-2 pb-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Gastos do mês por categoria</p>
+              </div>
+
+              {Object.keys(gastosPorCategoria).length === 0 && (
+                <div className="p-3 text-xs text-muted-foreground text-center border rounded-xl">
+                  Nenhum gasto cadastrado para este mês. Vá em Configurações → registrar gastos (marketing, anúncios, etc.).
+                </div>
+              )}
+
+              {Object.entries(gastosPorCategoria).map(([cat, v]) => {
+                const detalhes = gastosDoMes.filter(g => ((g as any).categoria || 'Custo Fixo') === cat);
+                return (
+                  <div key={cat} className="border rounded-xl overflow-hidden">
+                    <div className="flex justify-between p-3 bg-muted/20">
+                      <span className="text-sm font-medium">{cat}</span>
+                      <span className="text-sm font-bold text-destructive">−{formatCurrency(v)}</span>
+                    </div>
+                    <div className="divide-y bg-card">
+                      {detalhes.map(d => (
+                        <div key={d.id} className="flex justify-between px-3 py-1.5 text-xs">
+                          <span className="text-muted-foreground">
+                            {d.nome}
+                            {(d as any).recorrencia === 'unica' && (d as any).data && (
+                              <span className="text-[10px] ml-1.5">· {formatDate(new Date((d as any).data))}</span>
+                            )}
+                          </span>
+                          <span className="text-muted-foreground">−{formatCurrency(Number(d.valor))}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className={`flex justify-between p-3 rounded-xl mt-2 ${sobraReal >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                <span className="text-sm font-semibold">Sobra real (caixa)</span>
+                <span className={`text-sm font-bold ${sobraReal >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(sobraReal)}</span>
+              </div>
+            </div>
+
+            <div className="bg-muted/30 rounded-xl p-3 space-y-1">
+              <p className="text-xs"><strong>Sobra real ≠ Lucro do MEI.</strong></p>
+              <p className="text-[11px] text-muted-foreground">Desta sobra você ainda paga pró-labore (você + sócio), impostos (DAS), reinveste em estoque, etc. Apenas o que sobrar depois disso é lucro de verdade.</p>
+              <p className="text-[11px] text-muted-foreground pt-1">Registre TODOS os gastos (marketing, ads, reformas, parcerias) em <strong>Configurações</strong> para esse número refletir a realidade.</p>
             </div>
           </div>
         </SheetContent>

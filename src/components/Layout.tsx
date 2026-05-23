@@ -91,7 +91,7 @@ export default function Layout() {
       )}
 
       <div className="flex flex-col flex-1 min-h-screen overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-4 shrink-0 z-20 glass-sidebar md:bg-background/70 md:backdrop-blur-2xl md:border-b md:border-border/50 md:[background:rgba(247,247,247,0.7)]">
+        <header className="h-16 flex items-center justify-between px-4 shrink-0 z-20 [background:linear-gradient(180deg,hsl(var(--sidebar-background))_0%,hsl(213_50%_11%)_100%)] md:[background:hsl(var(--background)/0.7)] md:backdrop-blur-2xl md:border-b md:border-border/50">
           <div className="md:hidden">
             <PeakLogo size={28} withText />
           </div>

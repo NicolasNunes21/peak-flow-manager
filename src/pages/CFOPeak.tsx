@@ -346,7 +346,16 @@ export default function CFOPeak() {
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} width={45} />
             <Tooltip
               formatter={(v: number, name: string) => [formatCurrency(v), name === 'receita' ? 'Receita' : name === 'ebitda' ? 'EBITDA' : name]}
-              contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+              contentStyle={{
+                borderRadius: 8,
+                border: '0.5px solid hsl(var(--border))',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--card-foreground))',
+                fontSize: 12,
+              }}
+              labelStyle={{ color: 'hsl(var(--card-foreground))' }}
+              itemStyle={{ color: 'hsl(var(--card-foreground))' }}
             />
             <ReferenceLine y={0} stroke="hsl(var(--border))" />
             <Bar dataKey="receita" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />

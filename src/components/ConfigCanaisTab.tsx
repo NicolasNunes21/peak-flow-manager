@@ -1,15 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Plus, Loader2, Pencil, Check, X, EyeOff, Eye, Info } from "lucide-react";
+import { Plus, Loader2, Pencil, Check, X, EyeOff, Eye, Info, HardDrive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-type Canal = {
-  id: string;
-  nome: string;
-  tipo: string;
-  ativo: boolean;
-};
+import { useCanais, useCriarCanal, useAtualizarCanal, type Canal } from "@/lib/canaisStore";
 
 const TIPOS = [
   { key: 'loja', label: 'Loja', desc: 'Canal próprio físico ou digital' },
@@ -27,71 +19,53 @@ const TIPO_COLOR: Record<string, string> = {
 
 export default function ConfigCanaisTab() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState<typeof TIPOS[number]['key']>('parceria');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
   const [editTipo, setEditTipo] = useState<typeof TIPOS[number]['key']>('parceria');
 
-  const { data: canais, isLoading, error: loadError } = useQuery({
-    queryKey: ["canais-todos"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("canais").select("*").order("nome");
-      if (error) {
-        if (error.code === "PGRST205" || error.message?.includes("canais")) {
-          return [] as Canal[];
-        }
-        throw error;
-      }
-      return (data || []) as Canal[];
-    },
-    retry: false,
-  });
-  const tabelaFaltando = !!loadError;
+  const { data: result, isLoading } = useCanais(false);
+  const canais = result?.canais || [];
+  const usandoLocalStorage = result?.origem === 'local';
+  const acabouMigrar = result?.migrado;
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["canais"] });
-    queryClient.invalidateQueries({ queryKey: ["canais-todos"] });
+  const criar = useCriarCanal();
+  const atualizar = useAtualizarCanal();
+
+  const handleAdd = () => {
+    criar.mutate({ nome: nome.trim(), tipo }, {
+      onSuccess: (res) => {
+        setNome("");
+        toast({
+          title: "✅ Canal adicionado",
+          description: res.origem === 'local' ? 'Salvo neste navegador até a tabela existir no Supabase.' : undefined,
+        });
+      },
+      onError: (err: any) => {
+        toast({ title: "Erro", description: err?.message, variant: "destructive" as const });
+      },
+    });
   };
 
-  const addMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("canais").insert({ nome: nome.trim(), tipo });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "✅ Canal adicionado" });
-      setNome("");
-      invalidate();
-    },
-    onError: (err: any) => {
-      toast({ title: "Erro", description: err?.message, variant: "destructive" as const });
-    },
-  });
+  const handleUpdate = (id: string) => {
+    atualizar.mutate(
+      { id, patch: { nome: editNome, tipo: editTipo } },
+      {
+        onSuccess: () => {
+          toast({ title: "✅ Canal atualizado" });
+          setEditingId(null);
+        },
+        onError: (err: any) => {
+          toast({ title: "Erro", description: err?.message, variant: "destructive" as const });
+        },
+      }
+    );
+  };
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, nome, tipo }: { id: string; nome: string; tipo: string }) => {
-      const { error } = await supabase.from("canais").update({ nome, tipo }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "✅ Canal atualizado" });
-      setEditingId(null);
-      invalidate();
-    },
-    onError: (err: any) => {
-      toast({ title: "Erro", description: err?.message, variant: "destructive" as const });
-    },
-  });
-
-  const toggleAtivoMutation = useMutation({
-    mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
-      const { error } = await supabase.from("canais").update({ ativo }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => invalidate(),
-  });
+  const handleToggleAtivo = (canal: Canal) => {
+    atualizar.mutate({ id: canal.id, patch: { ativo: !canal.ativo } });
+  };
 
   const startEdit = (c: Canal) => {
     setEditingId(c.id);
@@ -99,40 +73,7 @@ export default function ConfigCanaisTab() {
     setEditTipo((TIPOS.find(t => t.key === c.tipo)?.key) || 'parceria');
   };
 
-  if (tabelaFaltando) {
-    return (
-      <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3">
-        <div className="flex items-start gap-2">
-          <Info size={16} className="text-destructive shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-destructive">Tabela de canais não existe ainda</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Aplique a migration no <strong>Supabase Dashboard → SQL Editor</strong>:
-            </p>
-          </div>
-        </div>
-        <pre className="bg-card border rounded-lg p-3 text-[10px] overflow-x-auto whitespace-pre-wrap">{`CREATE TABLE IF NOT EXISTS public.canais (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  nome text NOT NULL UNIQUE,
-  tipo text NOT NULL DEFAULT 'organico',
-  ativo boolean NOT NULL DEFAULT true,
-  created_at timestamptz DEFAULT now()
-);
-
-INSERT INTO public.canais (nome, tipo) VALUES
-  ('Loja física', 'loja'),
-  ('Instagram', 'organico'),
-  ('WhatsApp', 'organico'),
-  ('Indicação', 'organico'),
-  ('Anúncio Meta', 'pago'),
-  ('Anúncio Google', 'pago')
-ON CONFLICT (nome) DO NOTHING;
-
-ALTER TABLE public.custos_fixos
-  ADD COLUMN IF NOT EXISTS canal text;`}</pre>
-      </div>
-    );
-  }
+  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
 
   return (
     <div className="space-y-5">
@@ -140,6 +81,26 @@ ALTER TABLE public.custos_fixos
         <h2 className="text-base font-bold text-secondary">Canais de venda</h2>
         <p className="text-xs text-muted-foreground">Onde suas vendas acontecem. Vínculo essencial pra calcular ROAS dos canais pagos e parcerias.</p>
       </div>
+
+      {usandoLocalStorage && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
+          <HardDrive size={16} className="text-warning shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <p className="font-semibold text-warning">Modo offline — salvando neste navegador</p>
+            <p className="text-muted-foreground">A tabela <code className="bg-muted px-1 rounded">canais</code> ainda não existe no Supabase. Tudo funciona normalmente, mas os canais ficam só neste navegador até a tabela ser criada. Migração automática quando ela existir.</p>
+          </div>
+        </div>
+      )}
+
+      {acabouMigrar && (
+        <div className="bg-success/10 border border-success/30 rounded-xl p-3 flex items-start gap-2">
+          <Info size={16} className="text-success shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <p className="font-semibold text-success">Sincronizado!</p>
+            <p className="text-muted-foreground">Seus canais locais foram migrados pro Supabase.</p>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <div className="bg-card rounded-xl p-4 shadow-sm space-y-3">
@@ -163,24 +124,22 @@ ALTER TABLE public.custos_fixos
           ))}
         </div>
         <button
-          disabled={!nome.trim() || addMutation.isPending}
-          onClick={() => addMutation.mutate()}
+          disabled={!nome.trim() || criar.isPending}
+          onClick={handleAdd}
           className="w-full md:w-auto px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95"
         >
-          {addMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+          {criar.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           Adicionar canal
         </button>
       </div>
 
       {/* Lista */}
       <div className="bg-card rounded-xl shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">Carregando...</div>
-        ) : (canais || []).length === 0 ? (
+        {canais.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">Nenhum canal cadastrado.</div>
         ) : (
           <div className="divide-y">
-            {canais!.map(c => (
+            {canais.map(c => (
               <div key={c.id} className={`px-4 py-3 flex items-center gap-3 ${c.ativo ? '' : 'opacity-50'}`}>
                 {editingId === c.id ? (
                   <>
@@ -197,7 +156,7 @@ ALTER TABLE public.custos_fixos
                       {TIPOS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                     </select>
                     <button
-                      onClick={() => updateMutation.mutate({ id: c.id, nome: editNome, tipo: editTipo })}
+                      onClick={() => handleUpdate(c.id)}
                       className="p-1 rounded hover:bg-success/10"
                     >
                       <Check size={14} className="text-success" />
@@ -213,7 +172,7 @@ ALTER TABLE public.custos_fixos
                       <span className={`inline-block text-[10px] uppercase px-2 py-0.5 rounded-full font-medium mt-1 ${TIPO_COLOR[c.tipo]}`}>{c.tipo}</span>
                     </div>
                     <button
-                      onClick={() => toggleAtivoMutation.mutate({ id: c.id, ativo: !c.ativo })}
+                      onClick={() => handleToggleAtivo(c)}
                       className="p-1.5 rounded hover:bg-muted"
                       title={c.ativo ? 'Desativar' : 'Ativar'}
                     >
@@ -235,7 +194,6 @@ ALTER TABLE public.custos_fixos
         <p className="text-[11px] text-muted-foreground">
           <strong>Vínculo gasto → canal:</strong> ao registrar um gasto em "Anúncios" ou "Parceria", você pode associar a um canal específico
           (ex: gasto "Meta Ads campanha março" → canal "Anúncio Meta"). O CFO Peak cruza esses dados pra calcular ROAS por canal.
-          Não pode excluir canais que já têm vendas — desative ao invés disso.
         </p>
       </div>
     </div>

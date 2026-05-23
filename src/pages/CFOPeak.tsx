@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { calcularDRE, historicoMensal, tendencia, calcularROAS, statusTetoMEI, calcularRunway, type ConfigFinanceira } from "@/lib/cfo";
 import { gerarRecomendacoes, type Recomendacao } from "@/lib/cfo-recomenda";
+import { useConfigFinanceira } from "@/lib/configFinanceira";
+import { useCanais } from "@/lib/canaisStore";
 import { Briefcase, AlertTriangle, TrendingUp, TrendingDown, Minus, ChevronRight, Settings, FileText, Sparkles, Info, Shield, Target, Wallet, Building2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,50 +54,24 @@ export default function CFOPeak() {
       return data || [];
     },
   });
-  // Queries com tratamento gracioso de tabela faltando (migration não aplicada)
-  const { data: canais, error: canaisError } = useQuery({
-    queryKey: ["canais"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("canais").select("*").eq("ativo", true);
-      if (error) {
-        if (error.message?.includes("config_financeira") || error.message?.includes("canais") || error.code === "PGRST205") {
-          return [];
-        }
-        throw error;
-      }
-      return data || [];
-    },
-    retry: false,
-  });
-  const { data: config, error: configError } = useQuery({
-    queryKey: ["config-financeira"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("config_financeira").select("*");
-      if (error) {
-        if (error.message?.includes("config_financeira") || error.code === "PGRST205") {
-          return {} as Record<string, { valor: number; texto: string | null }>;
-        }
-        throw error;
-      }
-      const map: Record<string, { valor: number; texto: string | null }> = {};
-      (data || []).forEach(c => { map[c.chave] = { valor: Number(c.valor), texto: c.valor_texto }; });
-      return map;
-    },
-    retry: false,
-  });
-  const migrationPendente = !!(canaisError || configError);
+  // Canais via hook unificado com fallback localStorage
+  const { data: canaisResult } = useCanais(true);
+  const canais = canaisResult?.canais || [];
+  // Config financeira via hook unificado com fallback localStorage automático
+  const { data: configResult } = useConfigFinanceira();
+  const usandoLocalStorage = configResult?.origem === 'local' || canaisResult?.origem === 'local';
 
   // ====== Derivados ======
-  const cfg: ConfigFinanceira = useMemo(() => ({
-    pro_labore_socio1: config?.['pro_labore_socio1']?.valor ?? 0,
-    pro_labore_socio2: config?.['pro_labore_socio2']?.valor ?? 0,
-    das_mei_mensal: config?.['das_mei_mensal']?.valor ?? 80.90,
-    teto_mei_anual: config?.['teto_mei_anual']?.valor ?? 81000,
-    reserva_caixa: config?.['reserva_caixa']?.valor ?? 0,
-    meta_lucro_mensal: config?.['meta_lucro_mensal']?.valor ?? 0,
-    nome_socio1: config?.['pro_labore_socio1']?.texto ?? 'Sócio 1',
-    nome_socio2: config?.['pro_labore_socio2']?.texto ?? 'Sócio 2',
-  }), [config]);
+  const cfg: ConfigFinanceira = useMemo(() => configResult?.config ?? {
+    pro_labore_socio1: 0,
+    pro_labore_socio2: 0,
+    das_mei_mensal: 80.90,
+    teto_mei_anual: 81000,
+    reserva_caixa: 0,
+    meta_lucro_mensal: 0,
+    nome_socio1: 'Você',
+    nome_socio2: 'Sócio',
+  }, [configResult]);
 
   const vendasMes = useMemo(
     () => (vendas6m || []).filter(v => v.created_at && new Date(v.created_at) >= monthStart),
@@ -260,19 +236,19 @@ export default function CFOPeak() {
         </Link>
       </div>
 
-      {/* Migration pendente */}
-      {migrationPendente && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 flex items-start gap-2">
-          <AlertTriangle size={16} className="text-destructive shrink-0 mt-0.5" />
+      {/* Modo offline (localStorage) */}
+      {usandoLocalStorage && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
+          <Info size={16} className="text-warning shrink-0 mt-0.5" />
           <div className="text-xs">
-            <p className="font-semibold text-destructive">Tabelas do CFO Peak não foram criadas no Supabase</p>
-            <p className="text-muted-foreground">O recurso está rodando em modo limitado. Aplique a migration <code className="bg-muted px-1 rounded">20260523180000_cfo_canais_config.sql</code> no Supabase SQL Editor para habilitar pró-labore, reserva e canais.</p>
+            <p className="font-semibold text-warning">Modo offline — config salva neste navegador</p>
+            <p className="text-muted-foreground">A tabela <code className="bg-muted px-1 rounded">config_financeira</code> ainda não existe no Supabase. Tudo funciona normalmente, mas os dados ficam só neste navegador até a tabela ser criada. Sincronização automática quando ela existir.</p>
           </div>
         </div>
       )}
 
       {/* Avisos de configuração faltando */}
-      {!migrationPendente && (cfg.pro_labore_socio1 === 0 && cfg.pro_labore_socio2 === 0) && (
+      {!usandoLocalStorage && (cfg.pro_labore_socio1 === 0 && cfg.pro_labore_socio2 === 0) && (
         <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
           <Info size={16} className="text-warning shrink-0 mt-0.5" />
           <div className="text-xs">

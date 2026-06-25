@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [periodo, setPeriodo] = useState<'semana' | 'mes'>('semana');
   const [insightsExpanded, setInsightsExpanded] = useState(false);
   const [insightsMinimized, setInsightsMinimized] = useState(false);
+  const [recontatosOpen, setRecontatosOpen] = useState(false);
   const [selectedGastoCategoria, setSelectedGastoCategoria] = useState<string | null>(null);
 
   const { data: vendas, isLoading: loadingVendas } = useQuery({
@@ -324,14 +325,24 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Recontatos */}
+      {/* Recontatos — colapsável (começa minimizado) */}
       {(clientesRecontato || []).length > 0 && (
-        <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold tracking-tight">Recontatos pendentes</h3>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning font-semibold">{clientesRecontato!.length}</span>
-          </div>
-          <div className="space-y-2">
+        <div className="bg-card rounded-2xl card-elev overflow-hidden">
+          <button
+            onClick={() => setRecontatosOpen(o => !o)}
+            className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-success/15 flex items-center justify-center">
+                <MessageCircle size={14} className="text-success" />
+              </div>
+              <h3 className="text-sm font-semibold tracking-tight">Recontatos pendentes</h3>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning font-semibold">{clientesRecontato!.length}</span>
+            </div>
+            {recontatosOpen ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+          </button>
+          {recontatosOpen && (
+          <div className="space-y-2 p-4 pt-0">
             {clientesRecontato!.map(c => {
               const dias = diasAtras(c.data_ultima_compra || c.created_at || '');
               const script = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
@@ -351,6 +362,7 @@ export default function Dashboard() {
               );
             })}
           </div>
+          )}
         </div>
       )}
 

@@ -222,7 +222,7 @@ export default function Venda() {
 
   const resetForm = () => {
     setSelectedProduto(null); setProdutoSearch(""); setQuantidade(1); setPrecoVenda(0);
-    setFormaPgto(""); setCanal(canaisAtivos[0]?.nome || ""); setClienteSearch(""); setSelectedCliente(null);
+    setFormaPgto(""); setCanal(canaisAtivos.find(c => c.tipo === 'loja')?.nome || canaisAtivos[0]?.nome || ""); setClienteSearch(""); setSelectedCliente(null);
     setNovoClienteNome(""); setNovoClienteWhats(""); setShowNovoCliente(false); setSemCadastro(false); setObservacao(""); setDescontoRs(0); setBrinde("");
     setDataVenda(todayStr);
     setCarrinho([]);

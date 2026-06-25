@@ -401,6 +401,21 @@ describe("gerarRecomendacoes", () => {
     expect(ruptura).toBeDefined();
   });
 
+  it("reserva NÃO configurada (0) não trava em 'construir reserva'", () => {
+    const recs = gerarRecomendacoes(estadoBase({
+      reservaCaixa: 0, // não rastreada
+      custoFixoMensal: 500,
+      roasCanais: [{
+        canal: 'Meta Ads', tipo: 'pago', faturamento: 1500, margemBruta: 600,
+        numVendas: 10, gasto: 150, roas: 4, status: 'positivo',
+      }],
+    }));
+    // não deve aparecer a recomendação de construir reserva...
+    expect(recs.find(r => r.titulo.toLowerCase().includes('construa reserva'))).toBeUndefined();
+    // ...e deve aparecer a recomendação operacional de escalar o canal ganhador
+    expect(recs.find(r => r.titulo.includes('Meta Ads'))).toBeDefined();
+  });
+
   it("recomendações são ordenadas por prioridade", () => {
     const recs = gerarRecomendacoes(estadoBase({
       reservaCaixa: 100,

@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import { calcularDRE, historicoMensal, tendencia, calcularROAS, statusTetoMEI, calcularRunway, type ConfigFinanceira } from "@/lib/cfo";
+import { calcularDRE, historicoMensal, tendencia, calcularROAS, statusTetoMEI, calcularRunway, calcularMargemContribuicao, calcularBreakEven, analisarEstoque, curvaABC, calcularRecebiveis, variacaoPct, type ConfigFinanceira } from "@/lib/cfo";
 import { gerarRecomendacoes, type Recomendacao } from "@/lib/cfo-recomenda";
 import { useConfigFinanceira } from "@/lib/configFinanceira";
+import { useTaxasPgto } from "@/lib/taxasStore";
 import { useCanais } from "@/lib/canaisStore";
-import { Briefcase, AlertTriangle, TrendingUp, TrendingDown, Minus, ChevronRight, Settings, FileText, Sparkles, Info, Shield, Target, Wallet, Building2 } from "lucide-react";
+import { Briefcase, AlertTriangle, TrendingUp, TrendingDown, Minus, ChevronRight, Settings, FileText, Sparkles, Info, Shield, Target, Wallet, Building2, CreditCard, Boxes, Layers, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/PageHeader";
@@ -61,6 +62,8 @@ export default function CFOPeak() {
   // Config financeira via hook unificado com fallback localStorage automático
   const { data: configResult } = useConfigFinanceira();
   const usandoLocalStorage = configResult?.origem === 'local' || canaisResult?.origem === 'local';
+  // Taxas de cartão / prazos (padrões BR, editáveis em Configurações)
+  const { taxas } = useTaxasPgto();
 
   // ====== Derivados ======
   const cfg: ConfigFinanceira = useMemo(() => configResult?.config ?? {
@@ -127,6 +130,27 @@ export default function CFOPeak() {
     () => (gastos || []).filter(g => g.recorrencia === 'mensal').reduce((s, g) => s + Number(g.valor), 0),
     [gastos]
   );
+
+  // ====== Fórmulas novas (margem de contribuição, break-even real, caixa, estoque) ======
+  const prevMonthStart = useMemo(() => new Date(today.getFullYear(), today.getMonth() - 1, 1), [today]);
+  const vendasMesAnterior = useMemo(
+    () => (vendas6m || []).filter(v => {
+      if (!v.created_at) return false;
+      const d = new Date(v.created_at);
+      return d >= prevMonthStart && d < monthStart;
+    }),
+    [vendas6m, prevMonthStart, monthStart]
+  );
+
+  const mc = useMemo(() => calcularMargemContribuicao({ vendas: vendasMes as any, taxas }), [vendasMes, taxas]);
+  const mcAnterior = useMemo(() => calcularMargemContribuicao({ vendas: vendasMesAnterior as any, taxas }), [vendasMesAnterior, taxas]);
+  const breakEven = useMemo(() => calcularBreakEven({ vendas: vendasMes as any, custoFixoMensal, taxas }), [vendasMes, custoFixoMensal, taxas]);
+  const recebiveis = useMemo(() => calcularRecebiveis({ vendas: (vendasAno || []) as any, taxas, hoje: today }), [vendasAno, taxas, today]);
+  const estoque = useMemo(() => analisarEstoque({ produtos: (produtos || []) as any, vendas: (vendas6m || []) as any, hoje: today }), [produtos, vendas6m, today]);
+  const abc = useMemo(() => curvaABC(vendasMes as any), [vendasMes]);
+
+  // Delta mês a mês (deixa o CFO dinâmico)
+  const deltaMC = variacaoPct(mc.margemContribuicao, mcAnterior.margemContribuicao);
 
   // Produtos para sinais
   const produtosSinais = useMemo(() => {
@@ -329,6 +353,173 @@ export default function CFOPeak() {
             positiveColor
           />
         </div>
+      </div>
+
+      {/* Margem de contribuição */}
+      <div className="bg-card rounded-2xl card-elev overflow-hidden">
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard size={16} className="text-secondary" />
+            <h2 className="text-sm font-semibold text-secondary">Margem de contribuição</h2>
+          </div>
+          <DeltaBadge delta={deltaMC} />
+        </div>
+        <div className="p-4 space-y-1 text-sm">
+          <DRELinha label="(+) Receita líquida" valor={mc.receitaLiquida} bold />
+          <DRELinha label="(−) CMV (custo dos produtos)" valor={-mc.cmv} neg small />
+          <DRELinha label="(−) Taxas de cartão" valor={-mc.taxasCartao} neg small />
+          <DRELinha label="(=) Margem de contribuição" valor={mc.margemContribuicao} subtotal positiveColor sub={`${formatPercent(mc.mcPct)} da receita`} />
+        </div>
+        <div className="px-4 pb-4">
+          <p className="text-[11px] text-muted-foreground">
+            O que sobra de cada real vendido depois do custo do produto e da taxa da maquininha — antes dos custos fixos.
+            {mc.taxasCartao > 0 && ` A maquininha levou ${formatCurrency(mc.taxasCartao)} este mês.`}
+            {' '}<Link to="/configuracoes" className="text-primary underline">Ajustar taxas</Link>
+          </p>
+        </div>
+      </div>
+
+      {/* Break-even real */}
+      <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
+        <div className="flex items-center gap-2">
+          <Target size={16} className="text-secondary" />
+          <h2 className="text-sm font-semibold text-secondary">Ponto de equilíbrio (break-even)</h2>
+        </div>
+        {isFinite(breakEven.breakEvenRs) ? (
+          <>
+            <div className="flex justify-between text-xs">
+              <span>Faturamento do mês</span>
+              <span className="font-bold">{formatCurrency(breakEven.faturamentoAtual)}</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+              <div className={`h-3 rounded-full transition-all ${breakEven.atingido ? 'bg-success' : 'bg-primary'}`} style={{ width: `${Math.min((breakEven.faturamentoAtual / breakEven.breakEvenRs) * 100, 100)}%` }} />
+            </div>
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>Break-even: {formatCurrency(breakEven.breakEvenRs)}</span>
+              <span className={breakEven.atingido ? 'text-success font-medium' : ''}>
+                {breakEven.atingido ? `Margem de segurança ${formatPercent(breakEven.margemSegurancaPct)}` : `Faltam ${formatCurrency(breakEven.faltaRs)}`}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+              <div>
+                <p className="text-[10px] text-muted-foreground">Vendas p/ empatar (ticket médio)</p>
+                <p className="text-sm font-bold">{breakEven.vendasParaBE} vendas</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground">Margem de contribuição</p>
+                <p className="text-sm font-bold">{formatPercent(breakEven.mcPct)}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {breakEven.atingido
+                ? 'Você já cobriu os custos fixos do mês — cada venda a mais é lucro.'
+                : `Fature ${formatCurrency(breakEven.breakEvenRs)} no mês pra cobrir os custos fixos (${formatCurrency(breakEven.custoFixoMensal)}).`}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">Margem de contribuição negativa ou sem vendas — sem break-even calculável. Reveja preços e custos.</p>
+        )}
+      </div>
+
+      {/* Fluxo de caixa real — recebíveis */}
+      <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
+        <div className="flex items-center gap-2">
+          <Clock size={16} className="text-secondary" />
+          <h2 className="text-sm font-semibold text-secondary">Caixa real — recebíveis</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">A receber (cartão)</p>
+            <p className="text-base font-bold text-warning tabular-nums">{formatCurrency(recebiveis.aReceberTotal)}</p>
+          </div>
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Cai em até 7 dias</p>
+            <p className="text-base font-bold text-success tabular-nums">{formatCurrency(recebiveis.proximos7d)}</p>
+          </div>
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Cai em até 30 dias</p>
+            <p className="text-base font-bold tabular-nums">{formatCurrency(recebiveis.proximos30d)}</p>
+          </div>
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Já entrou no caixa (mês)</p>
+            <p className="text-base font-bold text-success tabular-nums">{formatCurrency(recebiveis.caixaRealizadoMes)}</p>
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Diferença entre o que você vendeu e o que já caiu no caixa. Crédito cai em D+{taxas['Crédito']?.prazoDias ?? 30}; PIX e dinheiro na hora.
+        </p>
+      </div>
+
+      {/* Estoque — cobertura, capital, ABC */}
+      <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Boxes size={16} className="text-secondary" />
+            <h2 className="text-sm font-semibold text-secondary">Saúde do estoque</h2>
+          </div>
+          <Link to="/estoque" className="text-[11px] text-primary hover:underline">Ver estoque</Link>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Capital em estoque</p>
+            <p className="text-sm font-bold tabular-nums">{formatCurrency(estoque.capitalTotal)}</p>
+          </div>
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Parado (sem giro)</p>
+            <p className="text-sm font-bold text-destructive tabular-nums">{formatCurrency(estoque.paradosValor)}</p>
+          </div>
+          <div className="p-3 bg-muted/40 rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Excesso (90+ dias)</p>
+            <p className="text-sm font-bold text-warning tabular-nums">{formatCurrency(estoque.excessoValor)}</p>
+          </div>
+        </div>
+
+        {/* Itens que pedem ação: ruptura + cobertura baixa */}
+        {(() => {
+          const criticos = estoque.itens
+            .filter(i => i.status === 'ruptura' || i.status === 'baixo')
+            .sort((a, b) => (a.coberturaDias ?? 0) - (b.coberturaDias ?? 0))
+            .slice(0, 5);
+          if (criticos.length === 0) return (
+            <p className="text-[11px] text-muted-foreground">Nenhum item em ruptura ou cobertura baixa. 👍</p>
+          );
+          return (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Repor logo</p>
+              {criticos.map(i => (
+                <div key={i.id} className="flex items-center justify-between text-xs border-b last:border-0 py-1">
+                  <span className="truncate flex-1 min-w-0">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${i.status === 'ruptura' ? 'bg-destructive' : 'bg-warning'}`} />
+                    {i.nome}
+                  </span>
+                  <span className="text-muted-foreground tabular-nums ml-2">
+                    {i.status === 'ruptura' ? 'sem estoque' : `${i.qtdAtual} un · ${i.coberturaDias!.toFixed(0)}d`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Curva ABC resumo */}
+        {abc.length > 0 && (() => {
+          const a = abc.filter(x => x.classe === 'A');
+          const b = abc.filter(x => x.classe === 'B');
+          const c = abc.filter(x => x.classe === 'C');
+          const pctA = a.reduce((s, x) => s + x.pct, 0);
+          return (
+            <div className="pt-2 border-t space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Layers size={13} className="text-muted-foreground" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Curva ABC (mês)</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                <strong className="text-foreground">{a.length} produto{a.length !== 1 ? 's' : ''} classe A</strong> fazem {pctA.toFixed(0)}% do faturamento.
+                {' '}B: {b.length} · C: {c.length}. Foque os A — é onde está o dinheiro.
+              </p>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Histórico 6 meses */}
@@ -537,6 +728,17 @@ function DRELinha({ label, valor, neg, bold, big, small, subtotal, positiveColor
         {formatCurrency(valor)}
       </span>
     </div>
+  );
+}
+
+function DeltaBadge({ delta }: { delta: number | null }) {
+  if (delta === null) return null;
+  const up = delta >= 0;
+  return (
+    <span className={`flex items-center gap-1 text-[11px] font-semibold ${up ? 'text-success' : 'text-destructive'}`}>
+      {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      {up ? '+' : ''}{delta.toFixed(0)}% vs mês passado
+    </span>
   );
 }
 

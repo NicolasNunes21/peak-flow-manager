@@ -119,8 +119,11 @@ export function gerarRecomendacoes(estado: EstadoFinanceiro): Recomendacao[] {
 
   // ============================================================
   // CENÁRIO 2: EBITDA POSITIVO mas RESERVA INSUFICIENTE
+  // Só dispara se a reserva está sendo rastreada (> 0). Reserva = 0 significa
+  // "não cadastrada" — não travamos o CFO em "construa reserva" pra sempre;
+  // deixamos as recomendações operacionais (canal, ruptura, margem) fluírem.
   // ============================================================
-  if (runwayMeses < RUNWAY_MIN_MESES) {
+  if (reservaCaixa > 0 && runwayMeses < RUNWAY_MIN_MESES) {
     const meta = custoFixoMensal * RUNWAY_MIN_MESES;
     const faltam = Math.max(meta - reservaCaixa, 0);
     const mesesParaMeta = resultadoLiquido > 0 ? Math.ceil(faltam / (resultadoLiquido * 0.7)) : Infinity;
@@ -145,7 +148,8 @@ export function gerarRecomendacoes(estado: EstadoFinanceiro): Recomendacao[] {
   // ============================================================
   // CENÁRIO 3: RESERVA OK — pode investir com critério
   // ============================================================
-  const reservaOk = runwayMeses >= RUNWAY_MIN_MESES;
+  // Reserva "ok" para investir = tem 3+ meses OU ainda não é rastreada (0).
+  const reservaOk = reservaCaixa === 0 || runwayMeses >= RUNWAY_MIN_MESES;
   if (reservaOk && resultadoLiquido > 0) {
     // Avaliar canais pagos com ROAS bom
     const canaisPagosComROAS = roasCanais.filter(c => c.gasto > 0);

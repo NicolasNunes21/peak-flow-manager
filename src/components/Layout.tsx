@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Briefcase, ShoppingCart, Truck, Package, Users, Settings, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Briefcase, Megaphone, ShoppingCart, Truck, Package, Users, Settings, Sun, Moon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PeakLogo } from "@/components/PeakLogo";
 import { useTheme } from "@/lib/theme";
@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/theme";
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/cfo", label: "CFO Peak", icon: Briefcase },
+  { path: "/cmo", label: "CMO Peak", icon: Megaphone },
   { path: "/venda", label: "Venda", icon: ShoppingCart, highlight: true },
   { path: "/compras", label: "Compras", icon: Truck },
   { path: "/estoque", label: "Estoque", icon: Package },

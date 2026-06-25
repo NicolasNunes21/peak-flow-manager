@@ -99,15 +99,28 @@ describe("curva ABC", () => {
 });
 
 describe("recebíveis (fluxo de caixa real)", () => {
-  it("crédito D+30 fica 'a receber'; PIX cai na hora", () => {
+  it("com prazo D+30 explícito, crédito fica 'a receber'; PIX cai na hora", () => {
+    const taxas = {
+      'Crédito': { taxa: 0.035, prazoDias: 30 },
+      'PIX': { taxa: 0, prazoDias: 0 },
+    };
     const vendas = [
       venda({ pgto: 'PIX', preco: 100, daysAgo: 0 }),       // cai na hora
       venda({ pgto: 'Crédito', preco: 100, daysAgo: 0 }),   // cai em D+30
     ];
-    const r = calcularRecebiveis({ vendas, hoje: HOJE });
+    const r = calcularRecebiveis({ vendas, taxas, hoje: HOJE });
     // crédito: 100 × (1 − 0,035) = 96,5 a receber
     expect(r.aReceberTotal).toBeCloseTo(96.5, 2);
     expect(r.proximos30d).toBeCloseTo(96.5, 2);
+  });
+
+  it("padrão é recebimento no mesmo dia (D+0): nada fica 'a receber'", () => {
+    const vendas = [
+      venda({ pgto: 'Crédito', preco: 100, daysAgo: 0 }),
+      venda({ pgto: 'Débito', preco: 100, daysAgo: 0 }),
+    ];
+    const r = calcularRecebiveis({ vendas, hoje: HOJE }); // usa TAXAS_PGTO_DEFAULT
+    expect(r.aReceberTotal).toBe(0);
   });
 });
 

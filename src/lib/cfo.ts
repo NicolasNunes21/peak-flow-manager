@@ -363,9 +363,12 @@ export function calcularRunway(reservaCaixa: number, queimaMensal: number): numb
 export type FormaPgtoTaxa = { taxa: number; prazoDias: number };
 export type TaxasPgto = Record<string, FormaPgtoTaxa>;
 
+// Padrão: recebimento NO MESMO DIA (D+0) — caso desta loja. A taxa da
+// maquininha continua aplicada (afeta a margem de contribuição); só o prazo
+// de recebimento é zero. Editável em Configurações por quem recebe em D+30.
 export const TAXAS_PGTO_DEFAULT: TaxasPgto = {
-  'Crédito': { taxa: 0.035, prazoDias: 30 },
-  'Débito': { taxa: 0.02, prazoDias: 1 },
+  'Crédito': { taxa: 0.035, prazoDias: 0 },
+  'Débito': { taxa: 0.02, prazoDias: 0 },
   'PIX': { taxa: 0, prazoDias: 0 },
   'Dinheiro': { taxa: 0, prazoDias: 0 },
 };

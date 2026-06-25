@@ -194,9 +194,20 @@ export default function Dashboard() {
   const custoPeriodo = periodo === 'semana' ? custoSemana : custosMes;
   const margemPctPeriodo = fatPeriodo > 0 ? ((fatPeriodo - custoPeriodo) / fatPeriodo) * 100 : 0;
 
+  // Categoria real do produto (em vez de adivinhar pelo nome).
+  // Usa o campo categoria do catálogo; cai pra 'Outro' se não achar.
+  const categoriaPorId = new Map<string, string>();
+  const categoriaPorNome = new Map<string, string>();
+  (produtos || []).forEach((p: any) => {
+    if (!p?.categoria) return;
+    if (p.id) categoriaPorId.set(p.id, p.categoria);
+    if (p.nome) categoriaPorNome.set(p.nome, p.categoria);
+  });
+  const catDe = (v: any) => (v.produto_id && categoriaPorId.get(v.produto_id)) || (v.produto_nome && categoriaPorNome.get(v.produto_nome)) || 'Outro';
+
   const catBreakdown: Record<string, { total: number; custo: number }> = {};
   (vendas || []).forEach(v => {
-    const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';
+    const cat = catDe(v);
     if (!catBreakdown[cat]) catBreakdown[cat] = { total: 0, custo: 0 };
     catBreakdown[cat].total += liquidoVenda(v);
     catBreakdown[cat].custo += v.custo_unit * v.quantidade;
@@ -205,7 +216,7 @@ export default function Dashboard() {
 
   const catBreakdownMes: Record<string, { total: number; custo: number }> = {};
   allMes.forEach(v => {
-    const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';
+    const cat = catDe(v);
     if (!catBreakdownMes[cat]) catBreakdownMes[cat] = { total: 0, custo: 0 };
     catBreakdownMes[cat].total += liquidoVenda(v);
     catBreakdownMes[cat].custo += v.custo_unit * v.quantidade;

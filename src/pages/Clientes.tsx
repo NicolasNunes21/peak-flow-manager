@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, formatDate, diasAtras, getWhatsAppScript, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, diasAtras, getWhatsAppScript, formatPercent, liquidoVenda } from "@/lib/format";
 import { Plus, Search, MessageCircle, ChevronRight, X, Users, Phone, Crown, DollarSign, ArrowLeft, Clock, ShoppingCart, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -112,7 +112,7 @@ export default function Clientes() {
   const receitaMediaMes = useMemo(() => {
     const vendasMes = (vendas || []).filter(v => v.created_at && v.created_at >= monthStart && v.cliente_id);
     const clientIds = new Set(vendasMes.map(v => v.cliente_id));
-    const totalMes = vendasMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const totalMes = vendasMes.reduce((s, v) => s + liquidoVenda(v), 0);
     return clientIds.size > 0 ? totalMes / clientIds.size : 0;
   }, [vendas, monthStart]);
 
@@ -149,7 +149,7 @@ export default function Clientes() {
     const c = detailCliente;
     const clienteVendas = (vendas || []).filter(v => v.cliente_id === c.id);
     const numCompras = clienteVendas.length;
-    const ticketMedio = numCompras > 0 ? clienteVendas.reduce((s: number, v: any) => s + v.preco_venda * v.quantidade, 0) / numCompras : 0;
+    const ticketMedio = numCompras > 0 ? clienteVendas.reduce((s: number, v: any) => s + liquidoVenda(v), 0) / numCompras : 0;
     const dias = c.data_ultima_compra ? diasAtras(c.data_ultima_compra) : 0;
     const whatsScript = getWhatsAppScript(c.nome, c.ultimo_produto_categoria || 'Whey', dias);
     const whatsNumero = c.whatsapp ? c.whatsapp.replace(/\D/g, '') : null;
@@ -249,7 +249,7 @@ export default function Clientes() {
                       <td className="py-2">{formatDate(v.created_at || '')}</td>
                       <td className="py-2">{v.produto_nome}</td>
                       <td className="py-2 text-right">{v.quantidade}</td>
-                      <td className="py-2 text-right font-medium">{formatCurrency(v.preco_venda * v.quantidade)}</td>
+                      <td className="py-2 text-right font-medium">{formatCurrency(liquidoVenda(v))}</td>
                       <td className="py-2 text-right"><span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">{v.forma_pgto}</span></td>
                     </tr>
                   ))}
@@ -266,8 +266,8 @@ export default function Clientes() {
             <div className="relative pl-4 space-y-3">
               <div className="absolute left-1.5 top-0 bottom-0 w-0.5 bg-muted" />
               {clienteVendas.slice(0, 10).map(v => {
-                const val = v.preco_venda * v.quantidade;
-                const maxVal = Math.max(...clienteVendas.map(vv => vv.preco_venda * vv.quantidade));
+                const val = liquidoVenda(v);
+                const maxVal = Math.max(...clienteVendas.map(vv => liquidoVenda(vv)));
                 const size = val >= maxVal * 0.8 ? 'w-3 h-3' : 'w-2 h-2';
                 return (
                   <div key={v.id} className="flex items-center gap-3 relative">

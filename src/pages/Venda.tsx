@@ -332,7 +332,12 @@ export default function Venda() {
       });
       for (const [produtoId, totalVendido] of stockDelta.entries()) {
         const snap = stockSnapshot.get(produtoId)!;
-        const novaQtd = snap.atual - totalVendido;
+        // Relê a quantidade atual do banco antes de gravar — evita sobrescrever
+        // o estoque com base num retrato desatualizado (ex: tela aberta há tempo
+        // ou venda registrada em outro lugar).
+        const { data: prodFresh } = await supabase.from("produtos").select("qtd_atual").eq("id", produtoId).maybeSingle();
+        const atualFresh = prodFresh?.qtd_atual ?? snap.atual;
+        const novaQtd = atualFresh - totalVendido;
         await supabase.from("produtos").update({ qtd_atual: novaQtd }).eq("id", produtoId);
         if (novaQtd < snap.min) {
           toast({ title: "⚠ Estoque baixo", description: `${snap.nome} ficou abaixo do mínimo.`, variant: "destructive" });

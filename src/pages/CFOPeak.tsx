@@ -421,7 +421,8 @@ export default function CFOPeak() {
         )}
       </div>
 
-      {/* Fluxo de caixa real — recebíveis */}
+      {/* Fluxo de caixa real — recebíveis (só aparece se há dinheiro a cair) */}
+      {recebiveis.aReceberTotal > 0.01 && (
       <div className="bg-card rounded-2xl p-4 card-elev space-y-3">
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-secondary" />
@@ -446,9 +447,10 @@ export default function CFOPeak() {
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground">
-          Diferença entre o que você vendeu e o que já caiu no caixa. Crédito cai em D+{taxas['Crédito']?.prazoDias ?? 30}; PIX e dinheiro na hora.
+          Diferença entre o que você vendeu e o que já caiu no caixa. Prazo de cada forma de pagamento configurável em Configurações.
         </p>
       </div>
+      )}
 
       {/* Estoque — cobertura, capital, ABC */}
       <div className="bg-card rounded-2xl p-4 card-elev space-y-3">

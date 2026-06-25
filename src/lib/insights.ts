@@ -14,6 +14,7 @@ type Venda = {
   quantidade: number;
   preco_venda: number;
   custo_unit: number;
+  desconto_rs?: number | null;
   created_at: string | null;
 };
 
@@ -79,7 +80,7 @@ export function gerarInsights(opts: {
         || (v.produto_nome && catNomeParaCategoria.get(v.produto_nome))
         || 'Outro';
       if (!map[cat]) map[cat] = { fat: 0, custo: 0 };
-      map[cat].fat += v.preco_venda * v.quantidade;
+      map[cat].fat += v.preco_venda * v.quantidade - Number(v.desconto_rs || 0);
       map[cat].custo += v.custo_unit * v.quantidade;
     });
     const result: Record<string, number> = {};

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/format";
-import { Loader2, Save, Info, Briefcase, Shield, Building2, Target, HardDrive, Calendar } from "lucide-react";
+import { Loader2, Save, Info, Briefcase, Shield, Building2, Target, HardDrive, Calendar, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useConfigFinanceira, useSalvarConfigFinanceira, CONFIG_DEFAULT, type ConfigFinanceira } from "@/lib/configFinanceira";
+import { useTaxasPgto } from "@/lib/taxasStore";
+import { type TaxasPgto } from "@/lib/cfo";
 
 export default function ConfigCFOTab() {
   const { toast } = useToast();
@@ -11,6 +13,15 @@ export default function ConfigCFOTab() {
 
   const { data: result, isLoading } = useConfigFinanceira();
   const salvar = useSalvarConfigFinanceira();
+
+  // Taxas de cartão (persistência local, auto-salva ao editar)
+  const { taxas, update: updateTaxas } = useTaxasPgto();
+  const [taxasForm, setTaxasForm] = useState<TaxasPgto>(taxas);
+  const setTaxa = (forma: string, campo: 'taxa' | 'prazoDias', valor: number) => {
+    const next: TaxasPgto = { ...taxasForm, [forma]: { ...taxasForm[forma], [campo]: valor } };
+    setTaxasForm(next);
+    updateTaxas(next);
+  };
 
   useEffect(() => {
     if (result?.config) {
@@ -137,6 +148,41 @@ export default function ConfigCFOTab() {
             <p className="text-[10px] text-muted-foreground mt-1">2026: R$ 81.000</p>
           </div>
         </div>
+      </Section>
+
+      {/* Taxas de cartão */}
+      <Section icon={CreditCard} title="Taxas de cartão e prazos" hint="Já vêm com os padrões do varejo. Ajuste só se a sua maquininha for diferente — vale pra todas as vendas, você não digita nada por venda.">
+        <div className="space-y-2">
+          {['Crédito', 'Débito', 'PIX', 'Dinheiro'].map(forma => {
+            const t = taxasForm[forma] ?? { taxa: 0, prazoDias: 0 };
+            return (
+              <div key={forma} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                <span className="text-sm">{forma}</span>
+                <div className="relative">
+                  <input
+                    type="number" step="0.1" min={0}
+                    className="w-20 pr-6 pl-2 py-1.5 rounded-lg border bg-background text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={Number((t.taxa * 100).toFixed(2)) || ''}
+                    onChange={e => setTaxa(forma, 'taxa', (parseFloat(e.target.value) || 0) / 100)}
+                  />
+                  <span className="absolute right-2 top-1.5 text-xs text-muted-foreground">%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">D+</span>
+                  <input
+                    type="number" step="1" min={0}
+                    className="w-14 px-2 py-1.5 rounded-lg border bg-background text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={t.prazoDias || 0}
+                    onChange={e => setTaxa(forma, 'prazoDias', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-muted-foreground pt-1">
+          Taxa = % que a maquininha cobra. D+ = dias até o dinheiro cair no caixa. Salva automaticamente.
+        </p>
       </Section>
 
       {/* Meta */}

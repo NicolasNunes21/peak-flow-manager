@@ -1,5 +1,11 @@
 // CFO Peak — engine de cálculos financeiros puros (sem dependência de Supabase)
 
+// Receita líquida de uma linha de venda: preço × qtd − desconto.
+// Tolerante a desconto_rs ausente/null (antes da migration) → trata como 0.
+function liquido(v: { quantidade: number; preco_venda: number; desconto_rs?: number | null }): number {
+  return v.preco_venda * v.quantidade - Number(v.desconto_rs || 0);
+}
+
 export type Venda = {
   id: string;
   produto_id: string | null;
@@ -158,7 +164,7 @@ export function historicoMensal(opts: {
       const d = new Date(v.created_at);
       return d >= ref && d < next;
     });
-    const receita = vendasMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const receita = vendasMes.reduce((s, v) => s + liquido(v), 0);
     const cmv = vendasMes.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
     const lucroBruto = receita - cmv;
     const margemPct = receita > 0 ? (lucroBruto / receita) * 100 : 0;
@@ -230,7 +236,7 @@ export function calcularROAS(opts: {
   vendasMes.forEach(v => {
     const canal = v.canal || 'Sem canal';
     if (!vendasPorCanal[canal]) vendasPorCanal[canal] = { fat: 0, cmv: 0, n: 0 };
-    vendasPorCanal[canal].fat += v.preco_venda * v.quantidade;
+    vendasPorCanal[canal].fat += liquido(v);
     vendasPorCanal[canal].cmv += v.custo_unit * v.quantidade;
     vendasPorCanal[canal].n += 1;
   });
@@ -303,7 +309,7 @@ export function statusTetoMEI(opts: {
   const inicioAno = new Date(hoje.getFullYear(), 0, 1);
   const faturamentoAno = opts.vendasAnoCorrente
     .filter(v => v.created_at && new Date(v.created_at) >= inicioAno)
-    .reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    .reduce((s, v) => s + liquido(v), 0);
 
   const mesAtual = hoje.getMonth() + 1;
   const diasAno = (hoje.getTime() - inicioAno.getTime()) / (1000 * 60 * 60 * 24);
@@ -347,4 +353,236 @@ export function statusTetoMEI(opts: {
 export function calcularRunway(reservaCaixa: number, queimaMensal: number): number {
   if (queimaMensal <= 0) return Infinity;
   return reservaCaixa / queimaMensal;
+}
+
+// ============================================================
+// Taxas de cartão e prazos de recebimento
+// Zero fricção: padrões do varejo brasileiro, editáveis 1x na config.
+// taxa em fração (0.035 = 3,5%); prazoDias = quando o dinheiro cai no caixa.
+// ============================================================
+export type FormaPgtoTaxa = { taxa: number; prazoDias: number };
+export type TaxasPgto = Record<string, FormaPgtoTaxa>;
+
+export const TAXAS_PGTO_DEFAULT: TaxasPgto = {
+  'Crédito': { taxa: 0.035, prazoDias: 30 },
+  'Débito': { taxa: 0.02, prazoDias: 1 },
+  'PIX': { taxa: 0, prazoDias: 0 },
+  'Dinheiro': { taxa: 0, prazoDias: 0 },
+};
+
+function taxaDe(forma: string | null | undefined, taxas: TaxasPgto): FormaPgtoTaxa {
+  return (forma && taxas[forma]) || { taxa: 0, prazoDias: 0 };
+}
+
+// ============================================================
+// Margem de contribuição — o que sobra DEPOIS da taxa de cartão
+// MC = receita líquida − CMV − taxa de cartão
+// ============================================================
+export type MargemContribuicao = {
+  receitaLiquida: number;
+  cmv: number;
+  taxasCartao: number;
+  margemContribuicao: number;
+  mcPct: number;
+};
+
+export function calcularMargemContribuicao(opts: { vendas: Venda[]; taxas?: TaxasPgto }): MargemContribuicao {
+  const taxas = opts.taxas ?? TAXAS_PGTO_DEFAULT;
+  let receitaLiquida = 0, cmv = 0, taxasCartao = 0;
+  for (const v of opts.vendas) {
+    const rl = liquido(v);
+    receitaLiquida += rl;
+    cmv += v.custo_unit * v.quantidade;
+    taxasCartao += rl * taxaDe(v.forma_pgto, taxas).taxa;
+  }
+  const margemContribuicao = receitaLiquida - cmv - taxasCartao;
+  const mcPct = receitaLiquida > 0 ? (margemContribuicao / receitaLiquida) * 100 : 0;
+  return { receitaLiquida, cmv, taxasCartao, margemContribuicao, mcPct };
+}
+
+// ============================================================
+// Break-even REAL — usa margem de contribuição (não margem bruta)
+// ============================================================
+export type BreakEven = {
+  mcPct: number;
+  custoFixoMensal: number;
+  breakEvenRs: number;        // faturamento líquido necessário p/ empatar
+  faturamentoAtual: number;
+  faltaRs: number;            // quanto falta (0 se já atingiu)
+  margemSegurancaPct: number; // % acima do break-even
+  ticketMedio: number;
+  vendasParaBE: number;       // nº de vendas no ticket médio p/ empatar
+  atingido: boolean;
+};
+
+export function calcularBreakEven(opts: { vendas: Venda[]; custoFixoMensal: number; taxas?: TaxasPgto }): BreakEven {
+  const mc = calcularMargemContribuicao({ vendas: opts.vendas, taxas: opts.taxas });
+  const mcFrac = mc.mcPct / 100;
+  const breakEvenRs = mcFrac > 0 ? opts.custoFixoMensal / mcFrac : Infinity;
+  const faturamentoAtual = mc.receitaLiquida;
+  const n = opts.vendas.length;
+  const ticketMedio = n > 0 ? faturamentoAtual / n : 0;
+  const vendasParaBE = ticketMedio > 0 && isFinite(breakEvenRs) ? Math.ceil(breakEvenRs / ticketMedio) : 0;
+  const atingido = faturamentoAtual >= breakEvenRs;
+  const faltaRs = isFinite(breakEvenRs) ? Math.max(breakEvenRs - faturamentoAtual, 0) : Infinity;
+  const margemSegurancaPct = faturamentoAtual > 0 && isFinite(breakEvenRs)
+    ? ((faturamentoAtual - breakEvenRs) / faturamentoAtual) * 100 : 0;
+  return {
+    mcPct: mc.mcPct, custoFixoMensal: opts.custoFixoMensal, breakEvenRs, faturamentoAtual,
+    faltaRs, margemSegurancaPct, ticketMedio, vendasParaBE, atingido,
+  };
+}
+
+// ============================================================
+// Estoque — cobertura em dias, giro, capital parado
+// ============================================================
+export type ProdutoEstoque = {
+  id: string;
+  nome: string;
+  categoria?: string | null;
+  qtd_atual: number | null;
+  custo_unit: number | null;
+};
+
+export type ItemEstoque = {
+  id: string;
+  nome: string;
+  qtdAtual: number;
+  vendaDiaria: number;            // média de unidades/dia na janela
+  coberturaDias: number | null;   // dias até zerar; null = não vende (parado)
+  giroMensal: number;             // unidades vendidas na janela ÷ estoque atual
+  capitalParado: number;          // qtd × custo
+  status: 'ruptura' | 'baixo' | 'saudavel' | 'excesso' | 'parado';
+};
+
+export function analisarEstoque(opts: {
+  produtos: ProdutoEstoque[];
+  vendas: Venda[];
+  hoje?: Date;
+  janelaDias?: number;
+}): { itens: ItemEstoque[]; capitalTotal: number; paradosValor: number; excessoValor: number } {
+  const hoje = opts.hoje ?? new Date();
+  const janela = opts.janelaDias ?? 30;
+  const desde = new Date(hoje.getTime() - janela * 86400000);
+
+  // unidades vendidas por produto na janela (por id e por nome, p/ robustez)
+  const vendidoPorId = new Map<string, number>();
+  const vendidoPorNome = new Map<string, number>();
+  for (const v of opts.vendas) {
+    if (!v.created_at) continue;
+    if (new Date(v.created_at) < desde) continue;
+    if (v.produto_id) vendidoPorId.set(v.produto_id, (vendidoPorId.get(v.produto_id) || 0) + v.quantidade);
+    if (v.produto_nome) vendidoPorNome.set(v.produto_nome, (vendidoPorNome.get(v.produto_nome) || 0) + v.quantidade);
+  }
+
+  let capitalTotal = 0, paradosValor = 0, excessoValor = 0;
+  const itens: ItemEstoque[] = opts.produtos.map(p => {
+    const qtdAtual = p.qtd_atual ?? 0;
+    const custo = p.custo_unit ?? 0;
+    const capitalParado = qtdAtual * custo;
+    capitalTotal += capitalParado;
+
+    const vendido = vendidoPorId.get(p.id) ?? vendidoPorNome.get(p.nome) ?? 0;
+    const vendaDiaria = vendido / janela;
+    const coberturaDias = vendaDiaria > 0 ? qtdAtual / vendaDiaria : null;
+    const giroMensal = qtdAtual > 0 ? vendido / qtdAtual : 0;
+
+    let status: ItemEstoque['status'];
+    if (qtdAtual <= 0) {
+      status = vendido > 0 ? 'ruptura' : 'parado';
+    } else if (vendaDiaria === 0) {
+      status = 'parado';
+      paradosValor += capitalParado;
+    } else if (coberturaDias! < 7) {
+      status = 'baixo';
+    } else if (coberturaDias! > 90) {
+      status = 'excesso';
+      excessoValor += capitalParado;
+    } else {
+      status = 'saudavel';
+    }
+
+    return { id: p.id, nome: p.nome, qtdAtual, vendaDiaria, coberturaDias, giroMensal, capitalParado, status };
+  });
+
+  return { itens, capitalTotal, paradosValor, excessoValor };
+}
+
+// ============================================================
+// Curva ABC — Pareto por receita líquida (A=80%, B=95%, C=resto)
+// ============================================================
+export type ItemABC = {
+  nome: string;
+  receita: number;
+  pct: number;       // % do total
+  pctAcum: number;   // % acumulado
+  classe: 'A' | 'B' | 'C';
+};
+
+export function curvaABC(vendas: Venda[]): ItemABC[] {
+  const porProduto = new Map<string, number>();
+  for (const v of vendas) {
+    const k = v.produto_nome || v.produto_id || '—';
+    porProduto.set(k, (porProduto.get(k) || 0) + liquido(v));
+  }
+  const total = [...porProduto.values()].reduce((s, x) => s + x, 0);
+  if (total <= 0) return [];
+  const ordenado = [...porProduto.entries()].sort((a, b) => b[1] - a[1]);
+  let acum = 0;
+  return ordenado.map(([nome, receita]) => {
+    const pct = (receita / total) * 100;
+    acum += pct;
+    const classe: ItemABC['classe'] = acum <= 80 ? 'A' : acum <= 95 ? 'B' : 'C';
+    return { nome, receita, pct, pctAcum: acum, classe };
+  });
+}
+
+// ============================================================
+// Recebíveis — fluxo de caixa REAL considerando prazo de cartão
+// ============================================================
+export type Recebiveis = {
+  aReceberTotal: number;     // líquido de taxa, ainda não caiu no caixa
+  proximos7d: number;        // cai nos próximos 7 dias
+  proximos30d: number;       // cai nos próximos 30 dias
+  caixaRealizadoMes: number; // já caiu no caixa dentro do mês corrente
+  faturadoMes: number;       // competência (líquido de desconto) no mês
+};
+
+export function calcularRecebiveis(opts: { vendas: Venda[]; taxas?: TaxasPgto; hoje?: Date }): Recebiveis {
+  const taxas = opts.taxas ?? TAXAS_PGTO_DEFAULT;
+  const hoje = opts.hoje ?? new Date();
+  const em7 = new Date(hoje.getTime() + 7 * 86400000);
+  const em30 = new Date(hoje.getTime() + 30 * 86400000);
+  const mesInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const mesFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+
+  let aReceberTotal = 0, proximos7d = 0, proximos30d = 0, caixaRealizadoMes = 0, faturadoMes = 0;
+  for (const v of opts.vendas) {
+    if (!v.created_at) continue;
+    const dataVenda = new Date(v.created_at);
+    const { taxa, prazoDias } = taxaDe(v.forma_pgto, taxas);
+    const liquidoCaixa = liquido(v) * (1 - taxa); // o que efetivamente entra
+    const dataRecebimento = new Date(dataVenda.getTime() + prazoDias * 86400000);
+
+    if (dataVenda >= mesInicio && dataVenda < mesFim) faturadoMes += liquido(v);
+
+    if (dataRecebimento > hoje) {
+      aReceberTotal += liquidoCaixa;
+      if (dataRecebimento <= em7) proximos7d += liquidoCaixa;
+      if (dataRecebimento <= em30) proximos30d += liquidoCaixa;
+    }
+    if (dataRecebimento >= mesInicio && dataRecebimento < mesFim && dataRecebimento <= hoje) {
+      caixaRealizadoMes += liquidoCaixa;
+    }
+  }
+  return { aReceberTotal, proximos7d, proximos30d, caixaRealizadoMes, faturadoMes };
+}
+
+// ============================================================
+// Variação período-a-período (pro CFO ficar dinâmico)
+// retorna null quando a base é zero (não comparável)
+// ============================================================
+export function variacaoPct(atual: number, anterior: number): number | null {
+  if (anterior === 0) return atual === 0 ? 0 : null;
+  return ((atual - anterior) / Math.abs(anterior)) * 100;
 }

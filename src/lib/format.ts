@@ -2,6 +2,12 @@ export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Receita líquida de uma linha de venda: preço × quantidade − desconto.
+// Tolerante a desconto_rs ausente (antes da migration) ou null → trata como 0.
+export function liquidoVenda(v: { preco_venda: number; quantidade: number; desconto_rs?: number | null }): number {
+  return v.preco_venda * v.quantidade - Number(v.desconto_rs || 0);
+}
+
 export function formatPercent(value: number): string {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 }

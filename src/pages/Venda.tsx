@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass } from "@/lib/format";
+import { formatCurrency, formatPercent, diasAtras, getRecontatoDias, margemBgClass, margemColorClass, liquidoVenda } from "@/lib/format";
 import { Search, Minus, Plus, Loader2, Package, ShoppingCart, X } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -216,8 +216,8 @@ export default function Venda() {
 
   const todayStr = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; })();
 
-  const totalHoje = (vendasHoje || []).reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
-  const margemHoje = (vendasHoje || []).reduce((s, v) => s + (v.preco_venda - v.custo_unit) * v.quantidade, 0);
+  const totalHoje = (vendasHoje || []).reduce((s, v) => s + liquidoVenda(v), 0);
+  const margemHoje = (vendasHoje || []).reduce((s, v) => s + (liquidoVenda(v) - v.custo_unit * v.quantidade), 0);
   const margemPctHoje = totalHoje > 0 ? (margemHoje / totalHoje) * 100 : 0;
 
   const resetForm = () => {

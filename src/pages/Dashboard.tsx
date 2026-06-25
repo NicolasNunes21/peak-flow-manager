@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, formatPercent, formatDate, formatTime, diasAtras, diaSemanaAbrev, getWhatsAppScript, getSaudacao, getDataHojeCompleta, margemColorClass } from "@/lib/format";
+import { formatCurrency, formatPercent, formatDate, formatTime, diasAtras, diaSemanaAbrev, getWhatsAppScript, getSaudacao, getDataHojeCompleta, margemColorClass, liquidoVenda } from "@/lib/format";
 import { TrendingUp, Target, Percent, Receipt, MessageCircle, ChevronDown, ChevronRight, ChevronUp, Info, BarChart3, Lightbulb, AlertTriangle, Sparkles, TrendingDown, Home, Megaphone, Building2, Handshake, MoreHorizontal, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
@@ -95,13 +95,14 @@ export default function Dashboard() {
   }
 
   const vendasHoje = (vendas || []).filter(v => v.created_at && v.created_at >= startOfDay);
-  const fatHoje = vendasHoje.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
-  const fatSemana = (vendas || []).reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+  const fatHoje = vendasHoje.reduce((s, v) => s + liquidoVenda(v), 0);
+  const fatSemana = (vendas || []).reduce((s, v) => s + liquidoVenda(v), 0);
   const metaSemana = 1750;
   const custoSemana = (vendas || []).reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
   const margemPct = fatSemana > 0 ? ((fatSemana - custoSemana) / fatSemana) * 100 : 0;
   const allMes = vendasMes || [];
-  const fatMes = allMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+  const fatBrutoMes = allMes.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+  const fatMes = allMes.reduce((s, v) => s + liquidoVenda(v), 0); // líquido (já descontado)
   const numVendasMes = allMes.length;
   const ticketMedio = numVendasMes > 0 ? fatMes / numVendasMes : 0;
 
@@ -115,11 +116,11 @@ export default function Dashboard() {
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     const dayVendas = allMes.filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
-    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const fat = dayVendas.reduce((s, v) => s + liquidoVenda(v), 0);
     const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
     const ticket = dayVendas.length > 0 ? fat / dayVendas.length : 0;
     const prodMap: Record<string, { nome: string; total: number }> = {};
-    dayVendas.forEach(v => { const k = v.produto_nome || ''; if (!prodMap[k]) prodMap[k] = { nome: k, total: 0 }; prodMap[k].total += v.preco_venda * v.quantidade; });
+    dayVendas.forEach(v => { const k = v.produto_nome || ''; if (!prodMap[k]) prodMap[k] = { nome: k, total: 0 }; prodMap[k].total += liquidoVenda(v); });
     return { dia: String(i + 1), valor: fat, vendas: dayVendas, numVendas: dayVendas.length, ticket, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0, topProds: Object.values(prodMap).sort((a, b) => b.total - a.total).slice(0, 3), dateStr: formatDate(d) };
   });
 
@@ -129,7 +130,7 @@ export default function Dashboard() {
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     const dayVendas = allMes.filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
-    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const fat = dayVendas.reduce((s, v) => s + liquidoVenda(v), 0);
     const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
@@ -141,7 +142,7 @@ export default function Dashboard() {
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     const dayVendas = (vendas || []).filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
-    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const fat = dayVendas.reduce((s, v) => s + liquidoVenda(v), 0);
     const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
     const ticket = dayVendas.length > 0 ? fat / dayVendas.length : 0;
     // Top products for this day
@@ -149,7 +150,7 @@ export default function Dashboard() {
     dayVendas.forEach(v => {
       const k = v.produto_nome || '';
       if (!prodMap[k]) prodMap[k] = { nome: k, total: 0 };
-      prodMap[k].total += v.preco_venda * v.quantidade;
+      prodMap[k].total += liquidoVenda(v);
     });
     const topProds = Object.values(prodMap).sort((a, b) => b.total - a.total).slice(0, 3);
     return {
@@ -169,7 +170,7 @@ export default function Dashboard() {
   allMes.forEach(v => {
     const key = v.produto_id || v.produto_nome || '';
     if (!produtoMapMes[key]) produtoMapMes[key] = { nome: v.produto_nome || '', total: 0, qtd: 0, custo: 0 };
-    produtoMapMes[key].total += v.preco_venda * v.quantidade;
+    produtoMapMes[key].total += liquidoVenda(v);
     produtoMapMes[key].qtd += v.quantidade;
     produtoMapMes[key].custo += v.custo_unit * v.quantidade;
   });
@@ -181,7 +182,7 @@ export default function Dashboard() {
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     const dayVendas = (vendas || []).filter(v => { const vd = new Date(v.created_at!); return vd >= dayStart && vd < dayEnd; });
-    const fat = dayVendas.reduce((s, v) => s + v.preco_venda * v.quantidade, 0);
+    const fat = dayVendas.reduce((s, v) => s + liquidoVenda(v), 0);
     const custo = dayVendas.reduce((s, v) => s + v.custo_unit * v.quantidade, 0);
     return { date: dayStart, dateStr: formatDate(dayStart), vendas: dayVendas, fat, margem: fat > 0 ? ((fat - custo) / fat) * 100 : 0 };
   });
@@ -196,7 +197,7 @@ export default function Dashboard() {
   (vendas || []).forEach(v => {
     const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';
     if (!catBreakdown[cat]) catBreakdown[cat] = { total: 0, custo: 0 };
-    catBreakdown[cat].total += v.preco_venda * v.quantidade;
+    catBreakdown[cat].total += liquidoVenda(v);
     catBreakdown[cat].custo += v.custo_unit * v.quantidade;
   });
   const catList = Object.entries(catBreakdown).map(([cat, d]) => ({ cat, ...d, margem: d.total > 0 ? ((d.total - d.custo) / d.total) * 100 : 0 })).sort((a, b) => b.total - a.total);
@@ -205,7 +206,7 @@ export default function Dashboard() {
   allMes.forEach(v => {
     const cat = v.produto_nome?.includes('Whey') ? 'Whey' : v.produto_nome?.includes('Creatina') ? 'Creatina' : v.produto_nome?.includes('Pré-treino') || v.produto_nome?.includes('Black Skull') ? 'Pré-treino' : v.produto_nome?.includes('Pasta') || v.produto_nome?.includes('Gummy') ? 'Sobremesa' : v.produto_nome?.includes('Vitamina') ? 'Vitamina' : 'Outro';
     if (!catBreakdownMes[cat]) catBreakdownMes[cat] = { total: 0, custo: 0 };
-    catBreakdownMes[cat].total += v.preco_venda * v.quantidade;
+    catBreakdownMes[cat].total += liquidoVenda(v);
     catBreakdownMes[cat].custo += v.custo_unit * v.quantidade;
   });
   const catListMes = Object.entries(catBreakdownMes).map(([cat, d]) => ({ cat, ...d, margem: d.total > 0 ? ((d.total - d.custo) / d.total) * 100 : 0 })).sort((a, b) => b.total - a.total);
@@ -219,17 +220,17 @@ export default function Dashboard() {
     { label: '> R$200', min: 200, max: Infinity },
   ];
   const faixaData = faixas.map(f => ({
-    ...f, count: allMes.filter(v => { const t = v.preco_venda * v.quantidade; return t >= f.min && t < f.max; }).length,
+    ...f, count: allMes.filter(v => { const t = liquidoVenda(v); return t >= f.min && t < f.max; }).length,
   }));
   const pgtoTicket: Record<string, { total: number; count: number }> = {};
   allMes.forEach(v => {
     const k = v.forma_pgto || 'Outro';
     if (!pgtoTicket[k]) pgtoTicket[k] = { total: 0, count: 0 };
-    pgtoTicket[k].total += v.preco_venda * v.quantidade;
+    pgtoTicket[k].total += liquidoVenda(v);
     pgtoTicket[k].count++;
   });
-  const vendaMaisAlta = allMes.length ? Math.max(...allMes.map(v => v.preco_venda * v.quantidade)) : 0;
-  const vendaMaisBaixa = allMes.length ? Math.min(...allMes.map(v => v.preco_venda * v.quantidade)) : 0;
+  const vendaMaisAlta = allMes.length ? Math.max(...allMes.map(v => liquidoVenda(v))) : 0;
+  const vendaMaisBaixa = allMes.length ? Math.min(...allMes.map(v => liquidoVenda(v))) : 0;
 
   // Resumo do mês
   // Custos fixos: só os com recorrência "mensal" (Aluguel, luz, salário, etc.)
@@ -258,7 +259,7 @@ export default function Dashboard() {
   const totalGastosMes = Object.values(gastosPorCategoria).reduce((s, v) => s + v, 0);
   const descontosMes = allMes.reduce((s, v: any) => s + Number(v.desconto_rs || 0), 0);
   const brindesMes = allMes.filter((v: any) => v.brinde && String(v.brinde).trim()).length;
-  const fatLiquidoMes = fatMes - descontosMes;
+  const fatLiquidoMes = fatMes; // fatMes já é líquido (descontos abatidos)
   const sobraReal = fatLiquidoMes - custosMes - totalGastosMes;
   const proLabore = (configFin?.pro_labore_socio1 || 0) + (configFin?.pro_labore_socio2 || 0);
   const dasMei = configFin?.das_mei_mensal ?? 80.90; // default DAS comércio 2026, mesmo sem tabela
@@ -571,7 +572,7 @@ export default function Dashboard() {
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Faturamento</span>
-              <span className="font-medium">{formatCurrency(fatMes)}</span>
+              <span className="font-medium">{formatCurrency(fatBrutoMes)}</span>
             </div>
             {descontosMes > 0 && (
               <div className="flex items-center justify-between">
@@ -682,7 +683,7 @@ export default function Dashboard() {
                     <p className="text-sm font-medium">{v.produto_nome}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(v.created_at!)} · {v.quantidade}× {formatCurrency(v.preco_venda)}</p>
                   </div>
-                  <p className="text-sm font-bold">{formatCurrency(v.preco_venda * v.quantidade)}</p>
+                  <p className="text-sm font-bold">{formatCurrency(liquidoVenda(v))}</p>
                   <button onClick={() => setEditVenda(v as any)} className="p-1 rounded hover:bg-muted" title="Editar venda">
                     <Pencil size={12} className="text-muted-foreground" />
                   </button>
@@ -725,7 +726,7 @@ export default function Dashboard() {
                     {dg.vendas.map(v => (
                       <div key={v.id} className="flex items-center gap-2 text-xs pt-2">
                         <span className="flex-1 min-w-0 truncate">{formatTime(v.created_at!)} · {v.produto_nome}</span>
-                        <span className="font-medium">{formatCurrency(v.preco_venda * v.quantidade)}</span>
+                        <span className="font-medium">{formatCurrency(liquidoVenda(v))}</span>
                         <button onClick={() => setEditVenda(v as any)} className="p-1 rounded hover:bg-card" title="Editar">
                           <Pencil size={11} className="text-muted-foreground" />
                         </button>
@@ -845,7 +846,7 @@ export default function Dashboard() {
                       <p className="font-medium truncate">{v.produto_nome}</p>
                       <p className="text-muted-foreground">{formatTime(v.created_at!)} · {v.quantidade}× {formatCurrency(v.preco_venda)}</p>
                     </div>
-                    <p className="font-bold">{formatCurrency(v.preco_venda * v.quantidade)}</p>
+                    <p className="font-bold">{formatCurrency(liquidoVenda(v))}</p>
                     <button onClick={() => setEditVenda(v as any)} className="p-1 rounded hover:bg-muted" title="Editar">
                       <Pencil size={11} className="text-muted-foreground" />
                     </button>

@@ -69,6 +69,7 @@ export const MARCA = {
 // ============================================================
 // Calendário semanal sugerido (0=Dom ... 6=Sáb)
 // ============================================================
+// Domingo a loja não abre → sem post nesse dia.
 export const CALENDARIO: { dia: number; label: string; foco: string }[] = [
   { dia: 1, label: 'Segunda', foco: 'Motivação + meta da semana' },
   { dia: 2, label: 'Terça', foco: 'Educativo (benefício de um produto)' },
@@ -76,7 +77,6 @@ export const CALENDARIO: { dia: number; label: string; foco: string }[] = [
   { dia: 4, label: 'Quinta', foco: 'Prova social (mais vendidos)' },
   { dia: 5, label: 'Sexta', foco: 'Sugestão pro fim de semana / combo' },
   { dia: 6, label: 'Sábado', foco: 'Bastidor / loja / atendimento' },
-  { dia: 0, label: 'Domingo', foco: 'Recompra / planejamento da semana' },
 ];
 
 // ============================================================

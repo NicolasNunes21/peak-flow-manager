@@ -105,6 +105,7 @@ export default function CMOPeak() {
 
   const cacAprox = ret.novosMes > 0 ? marketingMes / ret.novosMes : null;
   const hojeIdx = today.getDay();
+  const isDomingo = hojeIdx === 0;
   const focoHoje = CALENDARIO.find(c => c.dia === hojeIdx);
 
   return (
@@ -115,6 +116,14 @@ export default function CMOPeak() {
         icon={<Megaphone size={20} strokeWidth={2.5} />}
         iconGradient
       />
+
+      {/* Domingo: loja fechada */}
+      {isDomingo && (
+        <div className="bg-muted/40 rounded-2xl p-4 flex items-center gap-3">
+          <span className="text-xl">😴</span>
+          <p className="text-sm text-muted-foreground">Domingo a loja está fechada — sem post hoje. Aproveite pra <strong className="text-foreground">planejar a semana</strong> abaixo.</p>
+        </div>
+      )}
 
       {/* Foco do dia */}
       {focoHoje && (
